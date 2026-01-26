@@ -11,9 +11,6 @@ Voici quelques captures d'écran et démos du tableau de bord :
 ![Historique et Archivage](DEMO/Screenshot%202026-01-22%20170153.png)
 ````
 
-### Vidéo de démonstration
-Vous pouvez visionner la vidéo complète des fonctionnalités ici : [DEMO/Recording 2026-01-22 170730.mp4](DEMO/Recording%202026-01-22%20170730.mp4)
-
 ---
 
 ##  Installation et Démarrage
