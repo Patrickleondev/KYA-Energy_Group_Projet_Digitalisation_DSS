@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KYA Digitalization Dashboard</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        kya: {
+                            orange: '#F58220',
+                            green: '#8DC63F',
+                            blue: '#0054A6',
+                            dark: '#1A1A1A',
+                            light: '#F4F7FE'
+                        }
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.5s ease-out',
+                        'slide-up': 'slideUp 0.5s ease-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { transform: 'translateY(20px)', opacity: '0' },
+                            '100%': { transform: 'translateY(0)', opacity: '1' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Prop-Types (required by Recharts) -->
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <!-- Recharts -->
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #F4F7FE;
+        }
+
+        .glass {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .progress-bar {
+            transition: width 0.6s ease-in-out;
+        }
+    </style>
+</head>
+
+<body class="text-gray-800">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // Basic check for Recharts
+        if (typeof Recharts === 'undefined') {
+            console.error('Recharts not loaded! Checking window.Recharts...');
+            window.Recharts = window.Recharts || {};
+        }
+
+        const { useState, useEffect, useMemo } = React;
+        const {
+            BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+            LineChart, Line, Cell
+        } = Recharts;
+
+        // Icons placeholder (since Lucide needs to be initialized after render)
+        const Icon = ({ name, className = "" }) => {
+            const [svgContent, setSvgContent] = useState('');
+
+            useEffect(() => {
+                const updateIcon = () => {
+                    if (window.lucide && window.lucide.icons) {
+                        const pascalName = name.split('-')
+                            .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+                            .join('');
+
+                        const iconData = window.lucide.icons[pascalName] || window.lucide.icons[name.charAt(0).toUpperCase() + name.slice(1)];
+
+                        if (iconData && Array.isArray(iconData)) {
+                            const paths = iconData.map(([tag, attrs]) => {
+                                const attrStr = Object.entries(attrs)
+                                    .map(([k, v]) => `${k}="${v}"`)
+                                    .join(' ');
+                                return `<${tag} ${attrStr}></${tag}>`;
+                            }).join('');
+                            setSvgContent(paths);
+                        }
+                    }
+                };
+
+                updateIcon();
+                if (!window.lucide) {
+                    const timer = setInterval(() => {
+                        if (window.lucide) {
+                            updateIcon();
+                            clearInterval(timer);
+                        }
+                    }, 100);
+                    return () => clearInterval(timer);
+                }
+            }, [name, className]);
+
+            if (!svgContent) return <span class={className}></span>;
+
+            return (
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24" height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className={className}
+                    dangerouslySetInnerHTML={{ __html: svgContent }}
+                />
+            );
+        };
+
+        const DEPARTMENTS = [
+            { id: 'rh', name: 'Ressources Humaines', icon: 'users' },
+            { id: 'compta', name: 'Comptabilité/Finances', icon: 'credit-card' },
+            { id: 'achats', name: 'Achats et Approvisionnement', icon: 'shopping-cart' },
+            { id: 'stock', name: 'Stock et Logistique', icon: 'package' }
+        ];
+
+        const App = () => {
+            const [view, setView] = useState('dashboard'); // dashboard | tasks
+            const [selectedDept, setSelectedDept] = useState(null);
+            const [data, setData] = useState(null);
+            const [loading, setLoading] = useState(true);
+
+            // Load from Server API
+            useEffect(() => {
+                const loadData = async () => {
+                    try {
+                        const res = await fetch('/api/data');
+                        const serverData = await res.json();
+
+                        // Migration Check: If server data is empty/new, look for local data
+                        const localData = localStorage.getItem('kya_digital_data_v2');
+                        if (localData && (!serverData.history || serverData.history.length === 0)) {
+                            const parsedLocal = JSON.parse(localData);
+                            // If local has more info than server, suggest migration
+                            if (confirm("Des données locales ont été trouvées sur ce navigateur. Voulez-vous les charger sur le serveur partagé ?")) {
+                                setData(parsedLocal);
+                                setLoading(false);
+                                return;
+                            }
+                        }
+
+                        setData(serverData);
+                        setLoading(false);
+                    } catch (err) {
+                        console.error("Failed to load data:", err);
+                        setLoading(false);
+                    }
+                };
+                loadData();
+            }, []);
+
+            // Handle server-side persistence
+            useEffect(() => {
+                if (data && !loading) {
+                    fetch('/api/data', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(data)
+                    }).catch(err => console.error("Failed to save data:", err));
+
+                    // Keep a backup in local storage just in case
+                    localStorage.setItem('kya_digital_backup', JSON.stringify(data));
+                }
+            }, [data, loading]);
+
+            // Calculations
+            const stats = useMemo(() => {
+                if (!data) return null;
+                const deptStats = DEPARTMENTS.map(d => {
+                    const deptTasks = data.current.tasks.filter(t => t.deptId === d.id);
+                    const avg = deptTasks.length > 0
+                        ? Math.round(deptTasks.reduce((acc, t) => acc + t.progress, 0) / deptTasks.length)
+                        : 0;
+
+                    // Comparison logic
+                    const lastWeek = data.history[data.history.length - 1];
+                    const lastAvg = lastWeek?.averages?.find(a => a.id === d.id)?.val || 0;
+                    const diff = avg - lastAvg;
+
+                    return { ...d, progress: avg, count: deptTasks.length, diff };
+                });
+
+                const totalAvg = Math.round(deptStats.reduce((acc, d) => acc + d.progress, 0) / deptStats.length);
+
+                // Global comparison
+                const lastWeekEntries = data.history[data.history.length - 1];
+                const lastTotalAvg = lastWeekEntries
+                    ? Math.round(lastWeekEntries.averages.reduce((acc, a) => acc + a.val, 0) / lastWeekEntries.averages.length)
+                    : 0;
+                const totalDiff = totalAvg - lastTotalAvg;
+
+                // History data for chart
+                const historyData = data.history.map(h => {
+                    const hAvg = h.averages
+                        ? Math.round(h.averages.reduce((acc, a) => acc + a.val, 0) / h.averages.length)
+                        : 0;
+                    return { name: `S${h.week}`, avg: hAvg };
+                });
+                historyData.push({ name: `S${data.history.length + 1}`, avg: totalAvg });
+
+                return { deptStats, totalAvg, lastTotalAvg, totalDiff, historyData };
+            }, [data]);
+
+            const addTask = (deptId) => {
+                const name = prompt("Nom de la tâche digitalisable :");
+                if (!name) return;
+
+                const newTask = {
+                    id: Date.now(),
+                    deptId,
+                    name,
+                    progress: 0
+                };
+
+                setData(prev => ({
+                    ...prev,
+                    current: {
+                        ...prev.current,
+                        tasks: [...prev.current.tasks, newTask]
+                    }
+                }));
+            };
+
+            const renameTask = (taskId) => {
+                const task = data.current.tasks.find(t => t.id === taskId);
+                const newName = prompt("Renommer la tâche :", task.name);
+                if (!newName || newName === task.name) return;
+
+                setData(prev => ({
+                    ...prev,
+                    current: {
+                        ...prev.current,
+                        tasks: prev.current.tasks.map(t =>
+                            t.id === taskId ? { ...t, name: newName } : t
+                        )
+                    }
+                }));
+            };
+
+            const deleteTask = (taskId) => {
+                const task = data.current.tasks.find(t => t.id === taskId);
+                if (!confirm(`Voulez-vous supprimer la tâche "${task.name}" ?`)) return;
+
+                setData(prev => ({
+                    ...prev,
+                    current: {
+                        ...prev.current,
+                        tasks: prev.current.tasks.filter(t => t.id !== taskId)
+                    }
+                }));
+            };
+
+            const updateProgress = (taskId, value) => {
+                setData(prev => ({
+                    ...prev,
+                    current: {
+                        ...prev.current,
+                        tasks: prev.current.tasks.map(t =>
+                            t.id === taskId ? { ...t, progress: parseInt(value) } : t
+                        )
+                    }
+                }));
+            };
+
+            const updateDateRange = (field, value) => {
+                setData(prev => ({
+                    ...prev,
+                    current: {
+                        ...prev.current,
+                        dateRange: { ...prev.current.dateRange, [field]: value }
+                    }
+                }));
+            };
+
+            const archiveWeek = () => {
+                if (!confirm("Voulez-vous clôturer cette semaine et enregistrer les moyennes ?")) return;
+
+                const weekEntry = {
+                    week: data.history.length + 1,
+                    date: data.current.dateRange.start && data.current.dateRange.end
+                        ? `${data.current.dateRange.start} au ${data.current.dateRange.end}`
+                        : new Date().toISOString().split('T')[0],
+                    averages: stats.deptStats.map(d => ({ id: d.id, val: d.progress })),
+                    range: { ...data.current.dateRange }
+                };
+
+                setData(prev => ({
+                    ...prev,
+                    history: [...prev.history, weekEntry],
+                    current: {
+                        ...prev.current,
+                        dateRange: { start: '', end: '' } // Reset for next week
+                    }
+                }));
+                alert("Semaine clôturée avec succès !");
+            };
+
+            const deleteLastWeek = () => {
+                if (data.history.length === 0) return alert("L'historique est déjà vide.");
+                if (!confirm(`Voulez-vous vraiment supprimer l'archive de la Semaine ${data.history.length} ?`)) return;
+
+                setData(prev => ({
+                    ...prev,
+                    history: prev.history.slice(0, -1)
+                }));
+            };
+
+            const resetAllData = () => {
+                if (!confirm("ATTENTION : Cela va supprimer TOUTES les données (tâches et historique). Continuer ?")) return;
+
+                // Keep initial mock tasks but clear history and custom tasks
+                setData({
+                    history: [],
+                    current: {
+                        dateRange: { start: '', end: '' },
+                        tasks: [
+                            { id: 1, deptId: 'rh', name: 'Recrutement digital', progress: 0 },
+                            { id: 2, deptId: 'rh', name: 'Gestion des congés', progress: 0 },
+                            { id: 3, deptId: 'compta', name: 'Facturation électronique', progress: 0 },
+                            { id: 4, deptId: 'achats', name: 'Portail fournisseurs', progress: 0 },
+                            { id: 5, deptId: 'stock', name: 'Suivi temps réel', progress: 0 },
+                        ]
+                    }
+                });
+                alert("Tableau de bord réinitialisé.");
+            };
+
+            const editHistoryDate = (week, field, value) => {
+                setData(prev => ({
+                    ...prev,
+                    history: prev.history.map(h => {
+                        if (h.week === week) {
+                            const newRange = { ...(h.range || { start: '', end: '' }), [field]: value };
+                            return {
+                                ...h,
+                                range: newRange,
+                                date: newRange.start && newRange.end ? `${newRange.start} au ${newRange.end}` : h.date
+                            };
+                        }
+                        return h;
+                    })
+                }));
+            };
+
+            if (loading || !data) return (
+                <div class="h-screen w-screen flex flex-col items-center justify-center bg-gray-50">
+                    <div class="w-16 h-16 border-4 border-kya-blue border-t-transparent rounded-full animate-spin mb-4"></div>
+                    <p class="font-black text-kya-blue uppercase tracking-widest animate-pulse">Chargement DSS...</p>
+                </div>
+            );
+
+            return (
+                <div class="flex h-screen overflow-hidden">
+                    {/* ... Same content until view switch ... */}
+                    {/* Sidebar */}
+                    <div class="w-64 bg-white border-r border-gray-100 flex flex-col shadow-sm">
+                        <div class="p-6 flex flex-col items-center gap-4">
+                            <div class="w-full p-2 bg-white rounded-xl shadow-sm border border-gray-50 flex items-center justify-center">
+                                <img src="logo_kya.webp" alt="KYA Energy" class="max-h-12 object-contain" />
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-kya-orange animate-pulse"></div>
+                                <span class="font-bold text-sm tracking-widest text-[#0054A6]">DASHBOARD <span class="text-kya-orange">DSS</span></span>
+                            </div>
+                        </div>
+
+                        <nav class="flex-1 px-4 py-4 space-y-2">
+                            <button
+                                onClick={() => setView('dashboard')}
+                                class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${view === 'dashboard' ? 'bg-kya-blue text-white shadow-md' : 'text-gray-500 hover:bg-white hover:text-kya-blue'}`}
+                            >
+                                <Icon name="layout-dashboard" className="w-5 h-5" />
+                                <span class="font-medium">Tableau de Bord</span>
+                            </button>
+                            <button
+                                onClick={() => setView('tasks')}
+                                class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${view === 'tasks' ? 'bg-kya-blue text-white shadow-md' : 'text-gray-500 hover:bg-white hover:text-kya-blue'}`}
+                            >
+                                <Icon name="list-checks" className="w-5 h-5" />
+                                <span class="font-medium">Gestion des Tâches</span>
+                            </button>
+                            <button
+                                onClick={() => setView('admin')}
+                                class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${view === 'admin' ? 'bg-kya-blue text-white shadow-md' : 'text-gray-500 hover:bg-white hover:text-kya-blue'}`}
+                            >
+                                <Icon name="settings" className="w-5 h-5" />
+                                <span class="font-medium">Administration</span>
+                            </button>
+                        </nav>
+
+                        <div class="p-4 bg-orange-50 m-4 rounded-2xl border border-orange-100">
+                            <p class="text-[10px] text-kya-orange font-bold mb-1 uppercase tracking-widest text-center">Digitalisation Globale</p>
+                            <div class="flex flex-col items-center justify-center gap-0 mb-2">
+                                <span class="text-3xl font-black text-kya-blue">{stats.totalAvg}%</span>
+                                <span class={`text-[10px] font-bold ${stats.totalDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                    {stats.totalAvg === 0 && stats.lastTotalAvg === 0 ? '' : (
+                                        <>
+                                            {stats.totalDiff >= 0 ? '▲' : '▼'} {Math.abs(stats.totalDiff)}%
+                                            <span class="opacity-50 ml-1">(S{data.history.length}: {stats.lastTotalAvg}%)</span>
+                                        </>
+                                    )}
+                                </span>
+                            </div>
+                            <div class="w-full bg-white h-2 rounded-full overflow-hidden border border-orange-100 shadow-inner">
+                                <div class="bg-gradient-to-r from-kya-orange to-red-500 h-full progress-bar" style={{ width: `${stats.totalAvg}%` }}></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Main Content */}
+                    <main class="flex-1 overflow-y-auto bg-kya-light p-8">
+                        {/* Header */}
+                        <header class="flex justify-between items-center mb-10">
+                            <div>
+                                <h1 class="text-3xl font-black text-gray-900 tracking-tight">
+                                    {view === 'dashboard' ? 'Digitalisation Services Support' : 'Configuration des Tâches'}
+                                </h1>
+                                <div class="flex items-center gap-4 mt-1">
+                                    <div class="px-2 py-0.5 bg-kya-blue text-white text-[10px] font-bold rounded uppercase">Semaine {data.history.length + 1}</div>
+                                    <div class="flex items-center gap-2 bg-white/50 px-3 py-1 rounded-lg border border-gray-100">
+                                        <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Période :</span>
+                                        <div class="flex items-center gap-1">
+                                            <input
+                                                type="date"
+                                                value={data.current.dateRange.start}
+                                                onChange={(e) => updateDateRange('start', e.target.value)}
+                                                class="bg-transparent text-[10px] font-bold text-gray-900 focus:outline-none cursor-pointer"
+                                            />
+                                            <span class="text-[10px] font-bold text-gray-400">au</span>
+                                            <input
+                                                type="date"
+                                                value={data.current.dateRange.end}
+                                                onChange={(e) => updateDateRange('end', e.target.value)}
+                                                class="bg-transparent text-[10px] font-bold text-gray-900 focus:outline-none cursor-pointer"
+                                            />
+                                        </div>
+                                    </div>
+                                    {!data.current.dateRange.start && !data.current.dateRange.end && (
+                                        <p class="text-gray-400 text-xs font-medium uppercase tracking-widest">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                                    )}
+                                </div>
+                            </div>
+                            <div class="flex gap-4">
+                                <button onClick={archiveWeek} class="group px-5 py-2.5 bg-white text-gray-700 border border-gray-100 rounded-xl hover:border-kya-orange shadow-sm transition-all flex items-center gap-2 text-sm font-bold">
+                                    <Icon name="save" className="w-4 h-4 group-hover:text-kya-orange" />
+                                    Sauvegarder Semaine
+                                </button>
+                                <div class="flex items-center gap-3 pl-4 border-l border-gray-200">
+                                    <div class="text-right">
+                                        <p class="text-xs font-bold text-gray-900 leading-none">Team DSS</p>
+                                        <p class="text-[10px] text-gray-400 font-medium">teamdss@kya-energy.com</p>
+                                    </div>
+                                    <div class="w-10 h-10 rounded-full bg-gradient-to-br from-kya-blue to-kya-orange p-0.5 flex items-center justify-center">
+                                        <div class="w-full h-full rounded-full bg-white flex items-center justify-center overflow-hidden">
+                                            <Icon name="user" className="w-6 h-6 text-kya-blue" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </header>
+
+                        {view === 'dashboard' ? (
+                            <div class="animate-fade-in space-y-10">
+                                {/* Top Grid */}
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                                    {stats.deptStats.map(dept => (
+                                        <div key={dept.id} class="group bg-white p-6 rounded-3xl shadow-sm border border-transparent hover:border-kya-orange/20 hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                                            <div class="flex justify-between items-start mb-6">
+                                                <div class={`p-4 rounded-2xl bg-opacity-10 ${dept.id === 'rh' ? 'bg-orange-500 text-orange-500' : dept.id === 'compta' ? 'bg-blue-500 text-blue-500' : 'bg-green-500 text-green-500'}`}>
+                                                    <Icon name={dept.icon} className="w-7 h-7" />
+                                                </div>
+                                                <div class={`px-2 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${dept.diff >= 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                                                    {dept.diff >= 0 ? '+' : ''}{dept.diff}%
+                                                </div>
+                                            </div>
+                                            <h3 class="font-black text-gray-800 text-lg mb-1 leading-tight">{dept.name}</h3>
+                                            <div class="flex items-baseline gap-2 mb-4">
+                                                <span class="text-3xl font-black text-gray-900">{dept.progress}%</span>
+                                                <span class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Digitalisé</span>
+                                            </div>
+                                            <div class="space-y-2">
+                                                <div class="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                                                    <span>Progression</span>
+                                                    <span>{dept.count} tasks</span>
+                                                </div>
+                                                <div class="w-full bg-gray-50 h-3 rounded-full overflow-hidden border border-gray-100 transition-all group-hover:h-4 shadow-inner">
+                                                    <div
+                                                        class={`h-full progress-bar rounded-full ${dept.progress > 70 ? 'bg-kya-green' : dept.progress > 40 ? 'bg-kya-orange' : 'bg-kya-blue'}`}
+                                                        style={{ width: `${dept.progress}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Charts Column */}
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                                    {/* Line Chart History */}
+                                    <div class="lg:col-span-2 bg-white p-8 rounded-3xl shadow-sm border border-gray-50 hover:shadow-lg transition-all">
+                                        <div class="flex justify-between items-center mb-8">
+                                            <div>
+                                                <h3 class="font-black text-gray-900 text-xl tracking-tight">Évolution de la Digitalisation</h3>
+                                                <p class="text-xs text-gray-400 font-medium font-mono">COURBE DE PERFORMANCE SEMANIALE</p>
+                                            </div>
+                                            <div class="flex items-center gap-1 px-3 py-1.5 bg-kya-blue/10 text-kya-blue rounded-full text-[10px] font-black uppercase">
+                                                <Icon name="trending-up" className="w-3 h-3" />
+                                                +7% vs M-1
+                                            </div>
+                                        </div>
+                                        <div class="h-80">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart data={stats.historyData}>
+                                                    <defs>
+                                                        <linearGradient id="colorAvg" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="5%" stopColor="#F58220" stopOpacity={0.8} />
+                                                            <stop offset="95%" stopColor="#F58220" stopOpacity={0} />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 700, fill: '#cbd5e1' }} dy={10} />
+                                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#cbd5e1' }} domain={[0, 100]} />
+                                                    <Tooltip
+                                                        contentStyle={{ borderRadius: '20px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '15px' }}
+                                                        itemStyle={{ fontSize: '14px', fontWeight: '900', color: '#0054A6' }}
+                                                    />
+                                                    <Line
+                                                        type="monotone"
+                                                        dataKey="avg"
+                                                        stroke="url(#colorAvg)"
+                                                        strokeWidth={6}
+                                                        dot={{ r: 8, fill: '#fff', strokeWidth: 4, stroke: '#F58220' }}
+                                                        activeDot={{ r: 10, fill: '#F58220', stroke: '#fff', strokeWidth: 4 }}
+                                                    />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+
+                                    {/* Stats Comparison List */}
+                                    <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-50 flex flex-col">
+                                        <h3 class="font-black text-gray-900 text-xl tracking-tight mb-8">Performance Hebdo</h3>
+                                        <div class="flex-1 space-y-8">
+                                            {stats.deptStats.map(dept => (
+                                                <div key={dept.id} class="flex items-center gap-4 group">
+                                                    <div class={`w-1 shadow-sm h-12 rounded-full ${dept.id === 'rh' ? 'bg-kya-orange' : 'bg-kya-blue'}`}></div>
+                                                    <div class="flex-1">
+                                                        <div class="flex justify-between items-baseline">
+                                                            <p class="text-xs font-black text-gray-900 uppercase tracking-wider">{dept.name}</p>
+                                                            <span class={`text-xs font-black ${dept.diff >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                                                {dept.diff >= 0 ? '▲' : '▼'} {Math.abs(dept.diff)}%
+                                                            </span>
+                                                        </div>
+                                                        <div class="flex items-center gap-2 mt-1">
+                                                            <div class="flex-1 bg-gray-50 h-1.5 rounded-full overflow-hidden">
+                                                                <div class="bg-gray-200 h-full w-full absolute bg-opacity-20"></div>
+                                                                <div
+                                                                    class={`h-full rounded-full transition-all duration-1000 ${dept.id === 'rh' ? 'bg-kya-orange' : 'bg-kya-blue'}`}
+                                                                    style={{ width: `${dept.progress}%` }}
+                                                                ></div>
+                                                            </div>
+                                                            <span class="text-[10px] font-black text-gray-400 w-8">{dept.progress}%</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <div class="mt-8 pt-8 border-t border-gray-50">
+                                            <div class="p-4 bg-kya-blue rounded-2xl text-white shadow-lg shadow-kya-blue/20">
+                                                <div class="flex justify-between items-center">
+                                                    <div>
+                                                        <p class="text-[10px] font-bold uppercase opacity-60">Moyenne DSS</p>
+                                                        <p class="text-2xl font-black">{stats.totalAvg}%</p>
+                                                    </div>
+                                                    <Icon name="award" className="w-10 h-10 opacity-20" />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* History Section */}
+                                <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-50 overflow-hidden mt-10">
+                                    <div class="flex justify-between items-center mb-6">
+                                        <h3 class="font-black text-gray-900 text-xl tracking-tight">Historique des Digitalisations</h3>
+                                        <Icon name="archive" className="w-6 h-6 text-gray-300" />
+                                    </div>
+                                    <div class="overflow-x-auto">
+                                        <table class="w-full text-left">
+                                            <thead>
+                                                <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
+                                                    <th class="pb-4 text-left">Semaine</th>
+                                                    <th class="pb-4 text-left">Période / Date</th>
+                                                    <th class="pb-4 text-center">Score Global</th>
+                                                    <th class="pb-4 text-center">Détail Départements</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-gray-50">
+                                                {[...data.history].reverse().map(h => {
+                                                    const hAvg = h.averages ? Math.round(h.averages.reduce((acc, a) => acc + a.val, 0) / h.averages.length) : 0;
+                                                    return (
+                                                        <tr key={h.week} class="group hover:bg-gray-50 transition-colors">
+                                                            <td class="py-4 font-black text-gray-900">S{h.week}</td>
+                                                            <td class="py-4 text-xs font-bold text-gray-500">{h.date}</td>
+                                                            <td class="py-4 text-center">
+                                                                <span class="inline-block px-3 py-1 bg-kya-blue/10 text-kya-blue rounded-full font-black text-sm">
+                                                                    {hAvg}%
+                                                                </span>
+                                                            </td>
+                                                            <td class="py-4">
+                                                                <div class="flex justify-center gap-2">
+                                                                    {h.averages && h.averages.map(a => (
+                                                                        <div key={a.id} class="px-2 py-0.5 bg-gray-100 rounded text-[9px] font-bold text-gray-400 uppercase">
+                                                                            {a.id}: {a.val}%
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : view === 'admin' ? (
+                            <div class="animate-fade-in space-y-8 max-w-4xl mx-auto">
+                                <div class="bg-gray-900 p-8 rounded-[2rem] text-white flex justify-between items-center shadow-2xl relative overflow-hidden">
+                                    <div class="relative z-10">
+                                        <h2 class="text-2xl font-black mb-2 leading-tight">Administration & Paramètres</h2>
+                                        <p class="text-gray-400 text-sm font-medium">Gestion de l'historique et maintenance des données.</p>
+                                    </div>
+                                    <Icon name="shield-check" className="w-32 h-32 absolute -right-4 -bottom-4 opacity-10" />
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {/* History Management */}
+                                    <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-50 space-y-6">
+                                        <div class="flex items-center gap-3 mb-4">
+                                            <div class="p-3 bg-blue-50 text-blue-600 rounded-2xl">
+                                                <Icon name="history" className="w-6 h-6" />
+                                            </div>
+                                            <h3 class="font-black text-gray-900 uppercase">Gestion de l'Historique</h3>
+                                        </div>
+
+                                        <p class="text-xs text-gray-500 leading-relaxed">
+                                            Modifiez les dates des semaines passées pour les aligner avec votre calendrier réel.
+                                        </p>
+
+                                        <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2">
+                                            {[...data.history].reverse().map(h => (
+                                                <div key={h.week} class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
+                                                    <div class="flex-1">
+                                                        <span class="text-[10px] font-black text-blue-600 uppercase">Semaine {h.week}</span>
+                                                        <div class="flex items-center gap-2 mt-1">
+                                                            <input
+                                                                type="date"
+                                                                value={h.range?.start || ''}
+                                                                onChange={(e) => editHistoryDate(h.week, 'start', e.target.value)}
+                                                                class="bg-transparent border-b border-gray-100 focus:border-blue-500 focus:outline-none text-[10px] font-bold text-gray-700"
+                                                            />
+                                                            <span class="text-[10px] font-bold text-gray-400 italic">au</span>
+                                                            <input
+                                                                type="date"
+                                                                value={h.range?.end || ''}
+                                                                onChange={(e) => editHistoryDate(h.week, 'end', e.target.value)}
+                                                                class="bg-transparent border-b border-gray-100 focus:border-blue-500 focus:outline-none text-[10px] font-bold text-gray-700"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <Icon name="calendar" className="w-4 h-4 text-gray-300" />
+                                                </div>
+                                            ))}
+                                        </div>
+
+                                        <button
+                                            onClick={deleteLastWeek}
+                                            class="w-full py-4 bg-red-50 text-red-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-2"
+                                        >
+                                            <Icon name="undo-2" className="w-4 h-4" />
+                                            Supprimer la dernière archive (S{data.history.length})
+                                        </button>
+                                    </div>
+
+                                    {/* Data Maintenance */}
+                                    <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-50 space-y-6 flex flex-col">
+                                        <div class="flex items-center gap-3 mb-4">
+                                            <div class="p-3 bg-kya-orange/10 text-kya-orange rounded-2xl">
+                                                <Icon name="database" className="w-6 h-6" />
+                                            </div>
+                                            <h3 class="font-black text-gray-900 uppercase">Maintenance</h3>
+                                        </div>
+
+                                        <div class="flex-1 space-y-6">
+                                            <div class="p-6 bg-orange-50 rounded-2xl border border-orange-100">
+                                                <h4 class="text-sm font-black text-kya-orange mb-2 uppercase">Réinitialisation Complète</h4>
+                                                <p class="text-[10px] text-gray-500 font-medium mb-4">
+                                                    Supprime tout l'historique et remet les tâches par défaut à 0%. Utile pour commencer un nouveau cycle annuel.
+                                                </p>
+                                                <button
+                                                    onClick={resetAllData}
+                                                    class="px-6 py-3 bg-white text-red-500 border border-red-200 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all"
+                                                >
+                                                    Réinitialiser tout
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="p-6 bg-blue-50 rounded-2xl border border-blue-100 italic text-[10px] text-blue-600 font-medium leading-relaxed">
+                                            Note: Pour commencer officiellement à la semaine 7 (19 Janvier), utilisez "Supprimer la dernière archive" deux fois pour effacer S8 et S7 de mes données tests.
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : (
+                            <div class="animate-slide-up space-y-8 max-w-4xl mx-auto">
+                                <div class="bg-blue-600 p-8 rounded-[2rem] text-white flex justify-between items-center shadow-2xl relative overflow-hidden">
+                                    <div class="relative z-10">
+                                        <h2 class="text-2xl font-black mb-2 leading-tight">Mise à jour des indicateurs</h2>
+                                        <p class="text-blue-100 text-sm font-medium">Attribuez un taux de digitalisation à chaque tâche métier.</p>
+                                    </div>
+                                    <Icon name="scan-face" className="w-32 h-32 absolute -right-4 -bottom-4 opacity-10" />
+                                </div>
+
+                                {DEPARTMENTS.map(dept => (
+                                    <div key={dept.id} class="bg-white rounded-[2rem] shadow-sm border border-gray-50 overflow-hidden hover:shadow-xl transition-all border-l-[1rem] bg-gradient-to-r from-white to-gray-50" style={{ borderLeftColor: dept.id === 'rh' ? '#F58220' : '#0054A6' }}>
+                                        <div class="px-8 py-6 flex justify-between items-center bg-white/50 border-b border-gray-50 backdrop-blur-sm">
+                                            <div class="flex items-center gap-3">
+                                                <div class={`p-3 rounded-2xl ${dept.id === 'rh' ? 'bg-orange-50 text-kya-orange' : 'bg-blue-50 text-kya-blue'}`}>
+                                                    <Icon name={dept.icon} className="w-6 h-6" />
+                                                </div>
+                                                <div>
+                                                    <h3 class="font-black text-gray-900 uppercase tracking-tighter">{dept.name}</h3>
+                                                    <p class="text-[10px] text-gray-400 font-black tracking-widest uppercase">SECTION INDICATEURS</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => addTask(dept.id)}
+                                                class="px-4 py-2 bg-kya-blue/5 text-kya-blue rounded-xl text-xs font-black flex items-center gap-2 hover:bg-kya-blue hover:text-white transition-all transform active:scale-95"
+                                            >
+                                                <Icon name="plus" className="w-4 h-4" />
+                                                AJOUTER UNE TÂCHE
+                                            </button>
+                                        </div>
+                                        <div class="p-8 space-y-6">
+                                            {data.current.tasks.filter(t => t.deptId === dept.id).map(task => (
+                                                <div key={task.id} class="flex flex-col md:flex-row md:items-center gap-6 p-6 rounded-[1.5rem] bg-white border border-gray-100 shadow-sm hover:border-kya-orange/20 transition-all group">
+                                                    <div class="flex-1 flex items-center justify-between">
+                                                        <div>
+                                                            <div class="font-black text-gray-800 text-lg group-hover:text-kya-blue transition-colors uppercase tracking-tight">{task.name}</div>
+                                                            <div class={`text-[10px] font-black uppercase tracking-widest mt-1 ${task.progress === 100 ? 'text-green-500' : task.progress === 0 ? 'text-red-500' : 'text-kya-blue/60'}`}>
+                                                                Status: {task.progress === 100 ? 'Terminé' : task.progress === 0 ? 'Non débuté' : 'En cours de digitalisation'}
+                                                            </div>
+                                                        </div>
+                                                        <div class="flex gap-2 mr-4">
+                                                            <button onClick={() => renameTask(task.id)} class="p-2 text-gray-400 hover:text-kya-orange hover:bg-orange-50 rounded-lg transition-all" title="Renommer">
+                                                                <Icon name="pencil" className="w-4 h-4" />
+                                                            </button>
+                                                            <button onClick={() => deleteTask(task.id)} class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Supprimer">
+                                                                <Icon name="trash-2" className="w-4 h-4" />
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                    <div class="flex items-center gap-6 w-full md:w-80">
+                                                        <div class="flex-1 relative pb-4">
+                                                            <input
+                                                                type="range"
+                                                                min="0" max="100"
+                                                                value={task.progress}
+                                                                onChange={(e) => updateProgress(task.id, e.target.value)}
+                                                                class="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-kya-orange"
+                                                            />
+                                                            <div class="flex justify-between absolute bottom-0 left-0 w-full px-1">
+                                                                <span class="text-[8px] font-black text-gray-300">0%</span>
+                                                                <span class="text-[8px] font-black text-gray-300">50%</span>
+                                                                <span class="text-[8px] font-black text-gray-300">100%</span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="w-16 h-12 flex items-center justify-center bg-gray-900 text-white font-black rounded-2xl shadow-lg transform rotate-3 scale-110">
+                                                            {task.progress}%
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {data.current.tasks.filter(t => t.deptId === dept.id).length === 0 && (
+                                                <div class="text-center py-10 border-2 border-dashed border-gray-100 rounded-3xl">
+                                                    <Icon name="cloud-off" className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                                                    <p class="text-gray-400 font-black uppercase tracking-widest text-xs">Aucun processus identifié</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>
