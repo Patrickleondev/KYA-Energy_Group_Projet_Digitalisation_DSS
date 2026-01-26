@@ -1,15 +1,13 @@
 ##  Aperçu Médias
-Voici quelques captures d'écran et démos du tableau de bord :
+Voici quelques captures d'écran du tableau de bord :
 
-````carousel
 ![Tableau de Bord Global](DEMO/Screenshot%202026-01-22%20165708.png)
-<!-- slide -->
+
 ![Détails des Graphiques](DEMO/Screenshot%202026-01-22%20165839.png)
-<!-- slide -->
+
 ![Gestion des Tâches](DEMO/Screenshot%202026-01-22%20170008.png)
-<!-- slide -->
+
 ![Historique et Archivage](DEMO/Screenshot%202026-01-22%20170153.png)
-````
 
 ---
 
