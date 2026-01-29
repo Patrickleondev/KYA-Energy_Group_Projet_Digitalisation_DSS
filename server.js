@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 const app = express();
 const PORT = process.env.PORT || 80;
 const DATA_FILE = path.join(__dirname, 'data.json');
+const FEEDBACK_FILE = path.join(__dirname, 'feedback.json');
 
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(express.static(__dirname));
@@ -45,6 +46,24 @@ app.post('/api/data', (req, res) => {
     fs.writeFile(DATA_FILE, JSON.stringify(req.body, null, 2), (err) => {
         if (err) return res.status(500).json({ error: "Error saving data file" });
         res.json({ message: "Data saved successfully" });
+    });
+});
+
+app.post('/api/feedback', (req, res) => {
+    const feedback = req.body;
+    feedback.timestamp = new Date().toISOString();
+
+    fs.readFile(FEEDBACK_FILE, 'utf8', (err, data) => {
+        let feedbacks = [];
+        if (!err && data) {
+            try { feedbacks = JSON.parse(data); } catch (e) { }
+        }
+        feedbacks.push(feedback);
+
+        fs.writeFile(FEEDBACK_FILE, JSON.stringify(feedbacks, null, 2), (err) => {
+            if (err) return res.status(500).json({ error: "Error saving feedback" });
+            res.json({ message: "Feedback saved" });
+        });
     });
 });
 
