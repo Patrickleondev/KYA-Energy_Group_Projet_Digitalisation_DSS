@@ -27,8 +27,19 @@ const initialData = {
 };
 
 // Initialize data.json if it doesn't exist
+// Initialize data.json if it doesn't exist
+const INITIAL_DATA_FILE = path.join(__dirname, 'initial_data.json');
+
 if (!fs.existsSync(DATA_FILE)) {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
+    if (fs.existsSync(INITIAL_DATA_FILE)) {
+        // Restore from seed file (committed data)
+        fs.copyFileSync(INITIAL_DATA_FILE, DATA_FILE);
+        console.log("Restored data from initial_data.json");
+    } else {
+        // Fallback to empty structure
+        fs.writeFileSync(DATA_FILE, JSON.stringify(initialData, null, 2));
+        console.log("Created new data.json from default template");
+    }
 }
 
 app.get('/api/data', (req, res) => {

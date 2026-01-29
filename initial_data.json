@@ -1,0 +1,437 @@
+{
+    "activePhase": "test",
+    "phases": {
+        "test": {
+            "history": [
+                {
+                    "week": 1,
+                    "averages": [
+                        {
+                            "id": "rh",
+                            "val": 10
+                        },
+                        {
+                            "id": "compta",
+                            "val": 5
+                        },
+                        {
+                            "id": "achats",
+                            "val": 0
+                        },
+                        {
+                            "id": "stock",
+                            "val": 5
+                        }
+                    ]
+                },
+                {
+                    "week": 2,
+                    "averages": [
+                        {
+                            "id": "rh",
+                            "val": 15
+                        },
+                        {
+                            "id": "compta",
+                            "val": 10
+                        },
+                        {
+                            "id": "achats",
+                            "val": 5
+                        },
+                        {
+                            "id": "stock",
+                            "val": 10
+                        }
+                    ]
+                },
+                {
+                    "week": 3,
+                    "averages": [
+                        {
+                            "id": "rh",
+                            "val": 20
+                        },
+                        {
+                            "id": "compta",
+                            "val": 15
+                        },
+                        {
+                            "id": "achats",
+                            "val": 10
+                        },
+                        {
+                            "id": "stock",
+                            "val": 15
+                        }
+                    ]
+                },
+                {
+                    "week": 4,
+                    "averages": [
+                        {
+                            "id": "rh",
+                            "val": 25
+                        },
+                        {
+                            "id": "compta",
+                            "val": 20
+                        },
+                        {
+                            "id": "achats",
+                            "val": 15
+                        },
+                        {
+                            "id": "stock",
+                            "val": 20
+                        }
+                    ]
+                },
+                {
+                    "week": 5,
+                    "averages": [
+                        {
+                            "id": "rh",
+                            "val": 30
+                        },
+                        {
+                            "id": "compta",
+                            "val": 25
+                        },
+                        {
+                            "id": "achats",
+                            "val": 20
+                        },
+                        {
+                            "id": "stock",
+                            "val": 25
+                        }
+                    ]
+                },
+                {
+                    "week": 6,
+                    "averages": [
+                        {
+                            "id": "rh",
+                            "val": 35
+                        },
+                        {
+                            "id": "compta",
+                            "val": 30
+                        },
+                        {
+                            "id": "achats",
+                            "val": 22
+                        },
+                        {
+                            "id": "stock",
+                            "val": 30
+                        }
+                    ],
+                    "range": {
+                        "start": "2026-01-12",
+                        "end": "2026-01-17"
+                    },
+                    "date": "2026-01-12 au 2026-01-17"
+                },
+                {
+                    "week": 7,
+                    "date": "2026-01-19 au 2026-01-23",
+                    "averages": [
+                        {
+                            "id": "rh",
+                            "val": 84
+                        },
+                        {
+                            "id": "compta",
+                            "val": 33
+                        },
+                        {
+                            "id": "achats",
+                            "val": 59
+                        },
+                        {
+                            "id": "stock",
+                            "val": 94
+                        }
+                    ],
+                    "range": {
+                        "start": "2026-01-19",
+                        "end": "2026-01-23"
+                    }
+                }
+            ],
+            "current": {
+                "dateRange": {
+                    "start": "",
+                    "end": ""
+                },
+                "tasks": [
+                    {
+                        "id": 3,
+                        "deptId": "compta",
+                        "name": "Facturation des clients",
+                        "progress": 30
+                    },
+                    {
+                        "id": 4,
+                        "deptId": "achats",
+                        "name": "Gestions fournisseurs",
+                        "progress": 90
+                    },
+                    {
+                        "id": 5,
+                        "deptId": "stock",
+                        "name": "Suivi temps réel",
+                        "progress": 100
+                    },
+                    {
+                        "id": 1768919064733,
+                        "deptId": "compta",
+                        "name": "Paie",
+                        "progress": 20
+                    },
+                    {
+                        "id": 1768919571600,
+                        "deptId": "rh",
+                        "name": "Gestion de Présence",
+                        "progress": 100
+                    },
+                    {
+                        "id": 1768919582087,
+                        "deptId": "rh",
+                        "name": "Gestion de Congé",
+                        "progress": 100
+                    },
+                    {
+                        "id": 1768919593515,
+                        "deptId": "rh",
+                        "name": "Gestion de Permission",
+                        "progress": 93
+                    },
+                    {
+                        "id": 1768919621842,
+                        "deptId": "rh",
+                        "name": "Performance et Scoring",
+                        "progress": 34
+                    },
+                    {
+                        "id": 1768919709682,
+                        "deptId": "stock",
+                        "name": "Entrées et Sorties",
+                        "progress": 80
+                    },
+                    {
+                        "id": 1768919733137,
+                        "deptId": "stock",
+                        "name": "Inventaire",
+                        "progress": 90
+                    },
+                    {
+                        "id": 1768992874605,
+                        "deptId": "rh",
+                        "name": "GESTION DES EMPLOyés",
+                        "progress": 100
+                    },
+                    {
+                        "id": 1768992977638,
+                        "deptId": "rh",
+                        "name": "Gestion des Missions",
+                        "progress": 90
+                    },
+                    {
+                        "id": 1768993280199,
+                        "deptId": "compta",
+                        "name": "Emissions de reçu des clients",
+                        "progress": 20
+                    },
+                    {
+                        "id": 1768993313280,
+                        "deptId": "compta",
+                        "name": "Paiement des fournisseurs",
+                        "progress": 20
+                    },
+                    {
+                        "id": 1768993451488,
+                        "deptId": "compta",
+                        "name": "Enregistrement des mouvements comptable",
+                        "progress": 75
+                    },
+                    {
+                        "id": 1768993953728,
+                        "deptId": "achats",
+                        "name": "Bon Commande",
+                        "progress": 65
+                    },
+                    {
+                        "id": 1768993993488,
+                        "deptId": "achats",
+                        "name": "Facture d'achat",
+                        "progress": 50
+                    },
+                    {
+                        "id": 1768994045606,
+                        "deptId": "achats",
+                        "name": "Devis fournisseurs",
+                        "progress": 90
+                    },
+                    {
+                        "id": 1768994057379,
+                        "deptId": "achats",
+                        "name": "Approbation de depenses",
+                        "progress": 50
+                    },
+                    {
+                        "id": 1768995059491,
+                        "deptId": "stock",
+                        "name": "Reçu d'achat",
+                        "progress": 100
+                    },
+                    {
+                        "id": 1768995436166,
+                        "deptId": "stock",
+                        "name": "Note de livraison",
+                        "progress": 100
+                    }
+                ]
+            }
+        },
+        "preprod": {
+            "history": [],
+            "current": {
+                "dateRange": {
+                    "start": "",
+                    "end": ""
+                },
+                "tasks": [
+                    {
+                        "id": 3,
+                        "deptId": "compta",
+                        "name": "Facturation des clients",
+                        "progress": 0
+                    },
+                    {
+                        "id": 4,
+                        "deptId": "achats",
+                        "name": "Gestions fournisseurs",
+                        "progress": 0
+                    },
+                    {
+                        "id": 5,
+                        "deptId": "stock",
+                        "name": "Suivi temps réel",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768919064733,
+                        "deptId": "compta",
+                        "name": "Paie",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768919571600,
+                        "deptId": "rh",
+                        "name": "Gestion de Présence",
+                        "progress": 91
+                    },
+                    {
+                        "id": 1768919582087,
+                        "deptId": "rh",
+                        "name": "Gestion de Congé",
+                        "progress": 50
+                    },
+                    {
+                        "id": 1768919593515,
+                        "deptId": "rh",
+                        "name": "Gestion de Permission",
+                        "progress": 50
+                    },
+                    {
+                        "id": 1768919621842,
+                        "deptId": "rh",
+                        "name": "Performance et Scoring",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768919709682,
+                        "deptId": "stock",
+                        "name": "Entrées et Sorties",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768919733137,
+                        "deptId": "stock",
+                        "name": "Inventaire",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768992874605,
+                        "deptId": "rh",
+                        "name": "GESTION DES EMPLOyés",
+                        "progress": 90
+                    },
+                    {
+                        "id": 1768992977638,
+                        "deptId": "rh",
+                        "name": "Gestion des Missions",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768993280199,
+                        "deptId": "compta",
+                        "name": "Emissions de reçu des clients",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768993313280,
+                        "deptId": "compta",
+                        "name": "Paiement des fournisseurs",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768993451488,
+                        "deptId": "compta",
+                        "name": "Enregistrement des mouvements comptable",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768993953728,
+                        "deptId": "achats",
+                        "name": "Bon Commande",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768993993488,
+                        "deptId": "achats",
+                        "name": "Facture d'achat",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768994045606,
+                        "deptId": "achats",
+                        "name": "Devis fournisseurs",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768994057379,
+                        "deptId": "achats",
+                        "name": "Approbation de depenses",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768995059491,
+                        "deptId": "stock",
+                        "name": "Reçu d'achat",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1768995436166,
+                        "deptId": "stock",
+                        "name": "Note de livraison",
+                        "progress": 0
+                    }
+                ]
+            }
+        }
+    }
+}
