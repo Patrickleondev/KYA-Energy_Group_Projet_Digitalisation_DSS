@@ -15,12 +15,12 @@
                             "val": 5
                         },
                         {
-                            "id": "achats",
-                            "val": 0
+                            "id": "achat_stock",
+                            "val": 3
                         },
                         {
-                            "id": "stock",
-                            "val": 5
+                            "id": "logistique",
+                            "val": 0
                         }
                     ]
                 },
@@ -36,12 +36,12 @@
                             "val": 10
                         },
                         {
-                            "id": "achats",
-                            "val": 5
+                            "id": "achat_stock",
+                            "val": 8
                         },
                         {
-                            "id": "stock",
-                            "val": 10
+                            "id": "logistique",
+                            "val": 0
                         }
                     ]
                 },
@@ -57,12 +57,12 @@
                             "val": 15
                         },
                         {
-                            "id": "achats",
-                            "val": 10
+                            "id": "achat_stock",
+                            "val": 13
                         },
                         {
-                            "id": "stock",
-                            "val": 15
+                            "id": "logistique",
+                            "val": 0
                         }
                     ]
                 },
@@ -78,12 +78,12 @@
                             "val": 20
                         },
                         {
-                            "id": "achats",
-                            "val": 15
+                            "id": "achat_stock",
+                            "val": 18
                         },
                         {
-                            "id": "stock",
-                            "val": 20
+                            "id": "logistique",
+                            "val": 0
                         }
                     ]
                 },
@@ -99,12 +99,12 @@
                             "val": 25
                         },
                         {
-                            "id": "achats",
-                            "val": 20
+                            "id": "achat_stock",
+                            "val": 23
                         },
                         {
-                            "id": "stock",
-                            "val": 25
+                            "id": "logistique",
+                            "val": 0
                         }
                     ]
                 },
@@ -120,12 +120,12 @@
                             "val": 30
                         },
                         {
-                            "id": "achats",
-                            "val": 22
+                            "id": "achat_stock",
+                            "val": 26
                         },
                         {
-                            "id": "stock",
-                            "val": 30
+                            "id": "logistique",
+                            "val": 0
                         }
                     ],
                     "range": {
@@ -147,12 +147,12 @@
                             "val": 33
                         },
                         {
-                            "id": "achats",
-                            "val": 59
+                            "id": "achat_stock",
+                            "val": 77
                         },
                         {
-                            "id": "stock",
-                            "val": 94
+                            "id": "logistique",
+                            "val": 0
                         }
                     ],
                     "range": {
@@ -175,13 +175,13 @@
                     },
                     {
                         "id": 4,
-                        "deptId": "achats",
+                        "deptId": "achat_stock",
                         "name": "Gestions fournisseurs",
                         "progress": 90
                     },
                     {
                         "id": 5,
-                        "deptId": "stock",
+                        "deptId": "achat_stock",
                         "name": "Suivi temps réel",
                         "progress": 100
                     },
@@ -217,13 +217,13 @@
                     },
                     {
                         "id": 1768919709682,
-                        "deptId": "stock",
+                        "deptId": "achat_stock",
                         "name": "Entrées et Sorties",
                         "progress": 80
                     },
                     {
                         "id": 1768919733137,
-                        "deptId": "stock",
+                        "deptId": "achat_stock",
                         "name": "Inventaire",
                         "progress": 90
                     },
@@ -259,39 +259,51 @@
                     },
                     {
                         "id": 1768993953728,
-                        "deptId": "achats",
+                        "deptId": "achat_stock",
                         "name": "Bon Commande",
                         "progress": 65
                     },
                     {
                         "id": 1768993993488,
-                        "deptId": "achats",
+                        "deptId": "achat_stock",
                         "name": "Facture d'achat",
                         "progress": 50
                     },
                     {
                         "id": 1768994045606,
-                        "deptId": "achats",
+                        "deptId": "achat_stock",
                         "name": "Devis fournisseurs",
                         "progress": 90
                     },
                     {
                         "id": 1768994057379,
-                        "deptId": "achats",
+                        "deptId": "achat_stock",
                         "name": "Approbation de depenses",
                         "progress": 50
                     },
                     {
                         "id": 1768995059491,
-                        "deptId": "stock",
+                        "deptId": "achat_stock",
                         "name": "Reçu d'achat",
                         "progress": 100
                     },
                     {
                         "id": 1768995436166,
-                        "deptId": "stock",
+                        "deptId": "achat_stock",
                         "name": "Note de livraison",
                         "progress": 100
+                    },
+                    {
+                        "id": 1738773000001,
+                        "deptId": "logistique",
+                        "name": "Gestion des expéditions",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1738773000002,
+                        "deptId": "logistique",
+                        "name": "Planification logistique",
+                        "progress": 0
                     }
                 ]
             }
@@ -312,13 +324,13 @@
                     },
                     {
                         "id": 4,
-                        "deptId": "achats",
+                        "deptId": "achat_stock",
                         "name": "Gestions fournisseurs",
                         "progress": 0
                     },
                     {
                         "id": 5,
-                        "deptId": "stock",
+                        "deptId": "achat_stock",
                         "name": "Suivi temps réel",
                         "progress": 0
                     },
@@ -354,13 +366,13 @@
                     },
                     {
                         "id": 1768919709682,
-                        "deptId": "stock",
+                        "deptId": "achat_stock",
                         "name": "Entrées et Sorties",
                         "progress": 0
                     },
                     {
                         "id": 1768919733137,
-                        "deptId": "stock",
+                        "deptId": "achat_stock",
                         "name": "Inventaire",
                         "progress": 0
                     },
@@ -396,38 +408,50 @@
                     },
                     {
                         "id": 1768993953728,
-                        "deptId": "achats",
+                        "deptId": "achat_stock",
                         "name": "Bon Commande",
                         "progress": 0
                     },
                     {
                         "id": 1768993993488,
-                        "deptId": "achats",
+                        "deptId": "achat_stock",
                         "name": "Facture d'achat",
                         "progress": 0
                     },
                     {
                         "id": 1768994045606,
-                        "deptId": "achats",
+                        "deptId": "achat_stock",
                         "name": "Devis fournisseurs",
                         "progress": 0
                     },
                     {
                         "id": 1768994057379,
-                        "deptId": "achats",
+                        "deptId": "achat_stock",
                         "name": "Approbation de depenses",
                         "progress": 0
                     },
                     {
                         "id": 1768995059491,
-                        "deptId": "stock",
+                        "deptId": "achat_stock",
                         "name": "Reçu d'achat",
                         "progress": 0
                     },
                     {
                         "id": 1768995436166,
-                        "deptId": "stock",
+                        "deptId": "achat_stock",
                         "name": "Note de livraison",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1738773000001,
+                        "deptId": "logistique",
+                        "name": "Gestion des expéditions",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1738773000002,
+                        "deptId": "logistique",
+                        "name": "Planification logistique",
                         "progress": 0
                     }
                 ]
