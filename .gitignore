@@ -3,3 +3,6 @@ data.json
 .DS_Store
 .env
 *.log
+*.xlsx
+*.csv
+feedback.json

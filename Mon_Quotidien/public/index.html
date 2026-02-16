@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Architect | My Routine</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="glass-bg"></div>
+
+    <main class="container">
+        <header>
+            <div class="header-content">
+                <h1>Architecte Du Quotidien</h1>
+                <p class="subtitle">Stage ERPNext & Expertise CyberSécurité</p>
+            </div>
+            <div class="header-actions">
+                <div class="date-display" id="currentDate">-- -- ----</div>
+            </div>
+        </header>
+
+        <section class="dashboard-grid">
+            <!-- Time Blocking Column -->
+            <div class="glass-card routine-card">
+                <div class="card-header">
+                    <h2><span class="icon">🕒</span> Planning Hybride</h2>
+                    <button class="btn-icon add-btn" onclick="openAddTaskModal()" title="Ajouter une tâche">+</button>
+                </div>
+                <div class="task-list" id="routineList">
+                    <!-- Tasks injected by JS -->
+                </div>
+            </div>
+
+            <!-- Goals Tracking Column -->
+            <div class="goals-column">
+                <div class="glass-card goal-card">
+                    <div class="card-header">
+                        <h2><span class="icon">💼</span> Matrice ERPNext</h2>
+                    </div>
+                    <div class="progress-container" id="erpnextGoals">
+                        <!-- Progress bars injected by JS -->
+                    </div>
+                </div>
+
+                <div class="glass-card goal-card">
+                    <div class="card-header">
+                        <h2><span class="icon">🛡️</span> Expertise Cyber</h2>
+                    </div>
+                    <div class="progress-container" id="cyberGoals">
+                        <!-- Progress bars injected by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Victory Column -->
+            <div class="glass-card victory-card">
+                <div class="card-header">
+                    <h2><span class="icon">🏆</span> Victoires Du Jour</h2>
+                    <button class="btn-text" onclick="clearVictories()">Effacer</button>
+                </div>
+                <div class="victory-feed" id="victoryFeed">
+                    <p class="empty-state">Accomplissez vos objectifs pour célébrer vos victoires.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal for adding/editing tasks/goals -->
+    <div id="modal" class="modal">
+        <div class="modal-content glass-card">
+            <h3 id="modalTitle">Édition</h3>
+            <div class="modal-body" id="modalBody">
+                <!-- Content dynamic based on mode -->
+            </div>
+            <div class="modal-footer">
+                <button id="modalActionBtn" class="btn btn-primary">Sauvegarder</button>
+                <button onclick="closeModal()" class="btn btn-secondary">Annuler</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
