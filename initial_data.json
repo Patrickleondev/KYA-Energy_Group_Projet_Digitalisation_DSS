@@ -405,47 +405,54 @@
                         "deptId": "rh",
                         "name": "Enquête de satisfaction",
                         "progress": 0,
-                        "type": "employe"
+                        "type": "employe",
+                        "urgency": 1
                     },
                     {
                         "id": 1769000000002,
                         "deptId": "rh",
                         "name": "Formulaire d'évaluation",
                         "progress": 0,
-                        "type": "employe"
+                        "type": "employe",
+                        "urgency": 1
                     },
                     {
                         "id": 1769000000003,
                         "deptId": "rh",
                         "name": "Planning de congé (Flux)",
                         "progress": 0,
-                        "type": "employe"
+                        "type": "employe",
+                        "urgency": 2
                     },
                     {
                         "id": 1769000000004,
                         "deptId": "rh",
                         "name": "Formulaire de sortie employé (Employé)",
                         "progress": 0,
-                        "type": "employe"
+                        "type": "employe",
+                        "urgency": 2
                     },
                     {
                         "id": 1769000000005,
                         "deptId": "rh",
                         "name": "Permission de sortie stagiaire (Flux - Stagiaire)",
                         "progress": 0,
-                        "type": "stagiaire"
+                        "type": "stagiaire",
+                        "urgency": 2
                     },
                     {
                         "id": 1769000000006,
                         "deptId": "achat_stock",
                         "name": "Demande d'achat (Flux)",
-                        "progress": 0
+                        "progress": 0,
+                        "urgency": 3
                     },
                     {
                         "id": 1769000000007,
                         "deptId": "achat_stock",
                         "name": "PV de sortie de matériel",
-                        "progress": 0
+                        "progress": 0,
+                        "urgency": 3
                     },
                     {
                         "id": 1768993280199,

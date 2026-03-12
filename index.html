@@ -287,11 +287,15 @@
                     type = isStagiaire ? 'stagiaire' : 'employe';
                 }
 
+                const urgencyStr = prompt("Niveau d'urgence ?\n1 = 🔴 Haute (urgent, à traiter en priorité)\n2 = 🟠 Moyenne (personnalisation demandée)\n3 = 🔵 Normale (amélioration planifiée)", "3");
+                const urgency = urgencyStr ? Math.min(3, Math.max(1, parseInt(urgencyStr) || 3)) : 3;
+
                 const newTask = {
                     id: Date.now(),
                     deptId,
                     name,
                     progress: 0,
+                    urgency,
                     ...(type && { type })
                 };
 
@@ -882,6 +886,8 @@
                                     const filteredTasks = dept.id === 'rh'
                                         ? (rhFilter === 'all' ? deptTasks : deptTasks.filter(t => t.type === rhFilter))
                                         : deptTasks;
+                                    // Sort by urgency: 1 (Haute) first, then 2 (Moyenne), then 3 (Normale/undefined)
+                                    const sortedTasks = [...filteredTasks].sort((a, b) => (a.urgency || 3) - (b.urgency || 3));
 
                                     return (
                                         <div key={dept.id} class="bg-white rounded-[2rem] shadow-sm border border-gray-50 overflow-hidden hover:shadow-xl transition-all border-l-[1rem] bg-gradient-to-r from-white to-gray-50" style={{ borderLeftColor: dept.id === 'rh' ? '#F58220' : '#0054A6' }}>
@@ -934,56 +940,75 @@
                                                 </div>
                                             </div>
                                             <div class="p-8 space-y-6">
-                                                {filteredTasks.map(task => (
-                                                    <div key={task.id} class="flex flex-col md:flex-row md:items-center gap-6 p-6 rounded-[1.5rem] bg-white border border-gray-100 shadow-sm hover:border-kya-orange/20 transition-all group relative overflow-hidden">
-                                                        {task.name.includes('(Flux)') && (
-                                                            <div class="absolute top-0 right-0 px-3 py-1 bg-blue-500 text-white text-[8px] font-black uppercase tracking-tighter rounded-bl-xl shadow-sm">
-                                                                Workflow
-                                                            </div>
-                                                        )}
-                                                        <div class="flex-1 flex items-center justify-between">
-                                                            <div>
-                                                                <div class="flex items-center gap-2">
-                                                                    <div class="font-black text-gray-800 text-lg group-hover:text-kya-blue transition-colors uppercase tracking-tight">{task.name}</div>
-                                                                    {task.type === 'stagiaire' && (
-                                                                        <span class="px-2 py-0.5 bg-orange-100 text-kya-orange text-[8px] font-black rounded uppercase">Stage</span>
-                                                                    )}
+                                                {sortedTasks.map(task => {
+                                                    const urgencyLevel = task.urgency || 3;
+                                                    const urgencyConfig = {
+                                                        1: { label: 'Urgent', bg: 'bg-red-500', text: 'text-white', border: 'border-red-200', cardBg: 'bg-red-50/30' },
+                                                        2: { label: 'Prioritaire', bg: 'bg-orange-400', text: 'text-white', border: 'border-orange-200', cardBg: 'bg-orange-50/30' },
+                                                        3: { label: 'Normal', bg: 'bg-blue-100', text: 'text-blue-600', border: 'border-gray-100', cardBg: '' },
+                                                    }[urgencyLevel];
+                                                    return (
+                                                        <div key={task.id} class={`flex flex-col md:flex-row md:items-center gap-6 p-6 rounded-[1.5rem] border shadow-sm hover:shadow-md transition-all group relative overflow-hidden ${urgencyConfig.cardBg} border-${urgencyLevel === 1 ? 'red' : urgencyLevel === 2 ? 'orange' : 'gray'}-100`}>
+                                                            {/* Urgency ribbon (top-left) */}
+                                                            {urgencyLevel < 3 && (
+                                                                <div class={`absolute top-0 left-0 px-3 py-1 ${urgencyConfig.bg} ${urgencyConfig.text} text-[8px] font-black uppercase tracking-tighter rounded-br-xl shadow-sm flex items-center gap-1`}>
+                                                                    <span>{urgencyLevel === 1 ? '🔴' : '🟠'}</span>
+                                                                    {urgencyConfig.label}
                                                                 </div>
-                                                                <div class={`text-[10px] font-black uppercase tracking-widest mt-1 ${task.progress === 100 ? 'text-green-500' : task.progress === 0 ? 'text-red-500' : 'text-kya-blue/60'}`}>
-                                                                    Status: {task.progress === 100 ? 'Terminé' : task.progress === 0 ? 'Non débuté' : 'En cours de digitalisation'}
+                                                            )}
+                                                            {/* Workflow badge (top-right) */}
+                                                            {task.name.includes('(Flux)') && (
+                                                                <div class="absolute top-0 right-0 px-3 py-1 bg-blue-500 text-white text-[8px] font-black uppercase tracking-tighter rounded-bl-xl shadow-sm">
+                                                                    Workflow
+                                                                </div>
+                                                            )}
+                                                            <div class={`flex-1 flex items-center justify-between ${urgencyLevel < 3 ? 'mt-5' : ''}`}>
+                                                                <div>
+                                                                    <div class="flex items-center gap-2 flex-wrap">
+                                                                        <div class="font-black text-gray-800 text-lg group-hover:text-kya-blue transition-colors uppercase tracking-tight">{task.name}</div>
+                                                                        {task.type === 'stagiaire' && (
+                                                                            <span class="px-2 py-0.5 bg-orange-100 text-kya-orange text-[8px] font-black rounded uppercase">Stage</span>
+                                                                        )}
+                                                                        {urgencyLevel === 3 && (
+                                                                            <span class="px-2 py-0.5 bg-blue-50 text-blue-400 text-[8px] font-black rounded uppercase">🔵 Normal</span>
+                                                                        )}
+                                                                    </div>
+                                                                    <div class={`text-[10px] font-black uppercase tracking-widest mt-1 ${task.progress === 100 ? 'text-green-500' : task.progress === 0 ? 'text-red-500' : 'text-kya-blue/60'}`}>
+                                                                        Status: {task.progress === 100 ? 'Terminé ✓' : task.progress === 0 ? 'Non débuté' : 'En cours de digitalisation'}
+                                                                    </div>
+                                                                </div>
+                                                                <div class="flex gap-2 mr-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                    <button onClick={() => renameTask(task.id)} class="p-2 text-gray-400 hover:text-kya-orange hover:bg-orange-50 rounded-lg transition-all" title="Renommer">
+                                                                        <Icon name="pencil" className="w-4 h-4" />
+                                                                    </button>
+                                                                    <button onClick={() => deleteTask(task.id)} class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Supprimer">
+                                                                        <Icon name="trash-2" className="w-4 h-4" />
+                                                                    </button>
                                                                 </div>
                                                             </div>
-                                                            <div class="flex gap-2 mr-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                <button onClick={() => renameTask(task.id)} class="p-2 text-gray-400 hover:text-kya-orange hover:bg-orange-50 rounded-lg transition-all" title="Renommer">
-                                                                    <Icon name="pencil" className="w-4 h-4" />
-                                                                </button>
-                                                                <button onClick={() => deleteTask(task.id)} class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Supprimer">
-                                                                    <Icon name="trash-2" className="w-4 h-4" />
-                                                                </button>
+                                                            <div class="flex items-center gap-6 w-full md:w-80">
+                                                                <div class="flex-1 relative pb-4">
+                                                                    <input
+                                                                        type="range"
+                                                                        min="0" max="100"
+                                                                        value={task.progress}
+                                                                        onChange={(e) => updateProgress(task.id, e.target.value)}
+                                                                        class={`w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer ${urgencyLevel === 1 ? 'accent-red-500' : urgencyLevel === 2 ? 'accent-orange-400' : 'accent-kya-orange'}`}
+                                                                    />
+                                                                    <div class="flex justify-between absolute bottom-0 left-0 w-full px-1">
+                                                                        <span class="text-[8px] font-black text-gray-300">0%</span>
+                                                                        <span class="text-[8px] font-black text-gray-300">50%</span>
+                                                                        <span class="text-[8px] font-black text-gray-300">100%</span>
+                                                                    </div>
+                                                                </div>
+                                                                <div class={`w-16 h-12 flex items-center justify-center font-black rounded-2xl shadow-lg transform group-hover:scale-110 transition-transform ${urgencyLevel === 1 ? 'bg-red-500 text-white' : urgencyLevel === 2 ? 'bg-orange-400 text-white' : 'bg-gray-900 text-white'}`}>
+                                                                    {task.progress}%
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                        <div class="flex items-center gap-6 w-full md:w-80">
-                                                            <div class="flex-1 relative pb-4">
-                                                                <input
-                                                                    type="range"
-                                                                    min="0" max="100"
-                                                                    value={task.progress}
-                                                                    onChange={(e) => updateProgress(task.id, e.target.value)}
-                                                                    class="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-kya-orange"
-                                                                />
-                                                                <div class="flex justify-between absolute bottom-0 left-0 w-full px-1">
-                                                                    <span class="text-[8px] font-black text-gray-300">0%</span>
-                                                                    <span class="text-[8px] font-black text-gray-300">50%</span>
-                                                                    <span class="text-[8px] font-black text-gray-300">100%</span>
-                                                                </div>
-                                                            </div>
-                                                            <div class="w-16 h-12 flex items-center justify-center bg-gray-900 text-white font-black rounded-2xl shadow-lg transform group-hover:scale-110 transition-transform">
-                                                                {task.progress}%
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                {filteredTasks.length === 0 && (
+                                                    );
+                                                })}
+                                                {sortedTasks.length === 0 && (
                                                     <div class="text-center py-10 border-2 border-dashed border-gray-100 rounded-3xl">
                                                         <Icon name="cloud-off" className="w-12 h-12 text-gray-200 mx-auto mb-4" />
                                                         <p class="text-gray-400 font-black uppercase tracking-widest text-xs">Aucun processus identifié dans cette catégorie</p>
