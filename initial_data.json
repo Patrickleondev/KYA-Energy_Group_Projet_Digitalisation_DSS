@@ -195,25 +195,29 @@
                         "id": 1768919571600,
                         "deptId": "rh",
                         "name": "Gestion de Présence",
-                        "progress": 100
+                        "progress": 100,
+                        "type": "employe"
                     },
                     {
                         "id": 1768919582087,
                         "deptId": "rh",
                         "name": "Gestion de Congé",
-                        "progress": 100
+                        "progress": 100,
+                        "type": "employe"
                     },
                     {
                         "id": 1768919593515,
                         "deptId": "rh",
                         "name": "Gestion de Permission",
-                        "progress": 93
+                        "progress": 93,
+                        "type": "employe"
                     },
                     {
                         "id": 1768919621842,
                         "deptId": "rh",
                         "name": "Performance et Scoring",
-                        "progress": 34
+                        "progress": 34,
+                        "type": "employe"
                     },
                     {
                         "id": 1768919709682,
@@ -231,13 +235,15 @@
                         "id": 1768992874605,
                         "deptId": "rh",
                         "name": "GESTION DES EMPLOyés",
-                        "progress": 100
+                        "progress": 100,
+                        "type": "employe"
                     },
                     {
                         "id": 1768992977638,
                         "deptId": "rh",
                         "name": "Gestion des Missions",
-                        "progress": 90
+                        "progress": 90,
+                        "type": "employe"
                     },
                     {
                         "id": 1768993280199,
@@ -344,25 +350,29 @@
                         "id": 1768919571600,
                         "deptId": "rh",
                         "name": "Gestion de Présence",
-                        "progress": 91
+                        "progress": 0,
+                        "type": "employe"
                     },
                     {
                         "id": 1768919582087,
                         "deptId": "rh",
                         "name": "Gestion de Congé",
-                        "progress": 50
+                        "progress": 0,
+                        "type": "employe"
                     },
                     {
                         "id": 1768919593515,
                         "deptId": "rh",
                         "name": "Gestion de Permission",
-                        "progress": 50
+                        "progress": 0,
+                        "type": "employe"
                     },
                     {
                         "id": 1768919621842,
                         "deptId": "rh",
                         "name": "Performance et Scoring",
-                        "progress": 0
+                        "progress": 0,
+                        "type": "employe"
                     },
                     {
                         "id": 1768919709682,
@@ -380,12 +390,61 @@
                         "id": 1768992874605,
                         "deptId": "rh",
                         "name": "GESTION DES EMPLOyés",
-                        "progress": 90
+                        "progress": 0,
+                        "type": "employe"
                     },
                     {
                         "id": 1768992977638,
                         "deptId": "rh",
                         "name": "Gestion des Missions",
+                        "progress": 0,
+                        "type": "employe"
+                    },
+                    {
+                        "id": 1769000000001,
+                        "deptId": "rh",
+                        "name": "Enquête de satisfaction",
+                        "progress": 0,
+                        "type": "employe"
+                    },
+                    {
+                        "id": 1769000000002,
+                        "deptId": "rh",
+                        "name": "Formulaire d'évaluation",
+                        "progress": 0,
+                        "type": "employe"
+                    },
+                    {
+                        "id": 1769000000003,
+                        "deptId": "rh",
+                        "name": "Planning de congé (Flux)",
+                        "progress": 0,
+                        "type": "employe"
+                    },
+                    {
+                        "id": 1769000000004,
+                        "deptId": "rh",
+                        "name": "Formulaire de sortie employé (Employé)",
+                        "progress": 0,
+                        "type": "employe"
+                    },
+                    {
+                        "id": 1769000000005,
+                        "deptId": "rh",
+                        "name": "Permission de sortie stagiaire (Flux - Stagiaire)",
+                        "progress": 0,
+                        "type": "stagiaire"
+                    },
+                    {
+                        "id": 1769000000006,
+                        "deptId": "achat_stock",
+                        "name": "Demande d'achat (Flux)",
+                        "progress": 0
+                    },
+                    {
+                        "id": 1769000000007,
+                        "deptId": "achat_stock",
+                        "name": "PV de sortie de matériel",
                         "progress": 0
                     },
                     {

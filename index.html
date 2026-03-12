@@ -150,6 +150,7 @@
 
         const App = () => {
             const [view, setView] = useState('dashboard'); // dashboard | tasks | admin
+            const [rhFilter, setRhFilter] = useState('all'); // all | employe | stagiaire
             const [data, setData] = useState(null);
             const [loading, setLoading] = useState(true);
 
@@ -280,11 +281,18 @@
                 const name = prompt("Nom de la tâche digitalisable :");
                 if (!name) return;
 
+                let type = null;
+                if (deptId === 'rh') {
+                    const isStagiaire = confirm("La tâche concerne-t-elle les stagiaires ? (Sinon => Employé)");
+                    type = isStagiaire ? 'stagiaire' : 'employe';
+                }
+
                 const newTask = {
                     id: Date.now(),
                     deptId,
                     name,
-                    progress: 0
+                    progress: 0,
+                    ...(type && { type })
                 };
 
                 updatePhaseData(data.activePhase, (phase) => ({
@@ -869,75 +877,122 @@
                                     <Icon name="scan-face" className="w-32 h-32 absolute -right-4 -bottom-4 opacity-10" />
                                 </div>
 
-                                {DEPARTMENTS.map(dept => (
-                                    <div key={dept.id} class="bg-white rounded-[2rem] shadow-sm border border-gray-50 overflow-hidden hover:shadow-xl transition-all border-l-[1rem] bg-gradient-to-r from-white to-gray-50" style={{ borderLeftColor: dept.id === 'rh' ? '#F58220' : '#0054A6' }}>
-                                        <div class="px-8 py-6 flex justify-between items-center bg-white/50 border-b border-gray-50 backdrop-blur-sm">
-                                            <div class="flex items-center gap-3">
-                                                <div class={`p-3 rounded-2xl ${dept.id === 'rh' ? 'bg-orange-50 text-kya-orange' : 'bg-blue-50 text-kya-blue'}`}>
-                                                    <Icon name={dept.icon} className="w-6 h-6" />
+                                {DEPARTMENTS.map(dept => {
+                                    const deptTasks = activeData.current.tasks.filter(t => t.deptId === dept.id);
+                                    const filteredTasks = dept.id === 'rh'
+                                        ? (rhFilter === 'all' ? deptTasks : deptTasks.filter(t => t.type === rhFilter))
+                                        : deptTasks;
+
+                                    return (
+                                        <div key={dept.id} class="bg-white rounded-[2rem] shadow-sm border border-gray-50 overflow-hidden hover:shadow-xl transition-all border-l-[1rem] bg-gradient-to-r from-white to-gray-50" style={{ borderLeftColor: dept.id === 'rh' ? '#F58220' : '#0054A6' }}>
+                                            <div class="px-8 py-6 flex flex-col md:flex-row justify-between items-start md:items-center bg-white/50 border-b border-gray-50 backdrop-blur-sm gap-4">
+                                                <div class="flex items-center gap-3">
+                                                    <div class={`p-3 rounded-2xl ${dept.id === 'rh' ? 'bg-orange-50 text-kya-orange' : 'bg-blue-50 text-kya-blue'}`}>
+                                                        <Icon name={dept.icon} className="w-6 h-6" />
+                                                    </div>
+                                                    <div>
+                                                        <div class="flex items-center gap-2">
+                                                            <h3 class="font-black text-gray-900 uppercase tracking-tighter">{dept.name}</h3>
+                                                            {dept.id === 'rh' && (
+                                                                <span class="px-2 py-0.5 bg-kya-orange/10 text-kya-orange text-[9px] font-black rounded uppercase">Multi-Espace</span>
+                                                            )}
+                                                        </div>
+                                                        <p class="text-[10px] text-gray-400 font-black tracking-widest uppercase">SECTION INDICATEURS</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <h3 class="font-black text-gray-900 uppercase tracking-tighter">{dept.name}</h3>
-                                                    <p class="text-[10px] text-gray-400 font-black tracking-widest uppercase">SECTION INDICATEURS</p>
+
+                                                <div class="flex items-center gap-3">
+                                                    {dept.id === 'rh' && (
+                                                        <div class="flex p-1 bg-gray-100 rounded-xl">
+                                                            <button
+                                                                onClick={() => setRhFilter('all')}
+                                                                class={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${rhFilter === 'all' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400'}`}
+                                                            >
+                                                                Tous
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setRhFilter('employe')}
+                                                                class={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${rhFilter === 'employe' ? 'bg-kya-blue text-white shadow-sm' : 'text-gray-400'}`}
+                                                            >
+                                                                Employés
+                                                            </button>
+                                                            <button
+                                                                onClick={() => setRhFilter('stagiaire')}
+                                                                class={`px-3 py-1.5 rounded-lg text-[9px] font-black uppercase transition-all ${rhFilter === 'stagiaire' ? 'bg-kya-orange text-white shadow-sm' : 'text-gray-400'}`}
+                                                            >
+                                                                Stagiaires
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                    <button
+                                                        onClick={() => addTask(dept.id)}
+                                                        class="px-4 py-2 bg-gray-900 text-white rounded-xl text-xs font-black flex items-center gap-2 hover:bg-black transition-all transform active:scale-95"
+                                                    >
+                                                        <Icon name="plus" className="w-4 h-4" />
+                                                        AJOUTER
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <button
-                                                onClick={() => addTask(dept.id)}
-                                                class="px-4 py-2 bg-kya-blue/5 text-kya-blue rounded-xl text-xs font-black flex items-center gap-2 hover:bg-kya-blue hover:text-white transition-all transform active:scale-95"
-                                            >
-                                                <Icon name="plus" className="w-4 h-4" />
-                                                AJOUTER UNE TÂCHE
-                                            </button>
-                                        </div>
-                                        <div class="p-8 space-y-6">
-                                            {activeData.current.tasks.filter(t => t.deptId === dept.id).map(task => (
-                                                <div key={task.id} class="flex flex-col md:flex-row md:items-center gap-6 p-6 rounded-[1.5rem] bg-white border border-gray-100 shadow-sm hover:border-kya-orange/20 transition-all group">
-                                                    <div class="flex-1 flex items-center justify-between">
-                                                        <div>
-                                                            <div class="font-black text-gray-800 text-lg group-hover:text-kya-blue transition-colors uppercase tracking-tight">{task.name}</div>
-                                                            <div class={`text-[10px] font-black uppercase tracking-widest mt-1 ${task.progress === 100 ? 'text-green-500' : task.progress === 0 ? 'text-red-500' : 'text-kya-blue/60'}`}>
-                                                                Status: {task.progress === 100 ? 'Terminé' : task.progress === 0 ? 'Non débuté' : 'En cours de digitalisation'}
+                                            <div class="p-8 space-y-6">
+                                                {filteredTasks.map(task => (
+                                                    <div key={task.id} class="flex flex-col md:flex-row md:items-center gap-6 p-6 rounded-[1.5rem] bg-white border border-gray-100 shadow-sm hover:border-kya-orange/20 transition-all group relative overflow-hidden">
+                                                        {task.name.includes('(Flux)') && (
+                                                            <div class="absolute top-0 right-0 px-3 py-1 bg-blue-500 text-white text-[8px] font-black uppercase tracking-tighter rounded-bl-xl shadow-sm">
+                                                                Workflow
+                                                            </div>
+                                                        )}
+                                                        <div class="flex-1 flex items-center justify-between">
+                                                            <div>
+                                                                <div class="flex items-center gap-2">
+                                                                    <div class="font-black text-gray-800 text-lg group-hover:text-kya-blue transition-colors uppercase tracking-tight">{task.name}</div>
+                                                                    {task.type === 'stagiaire' && (
+                                                                        <span class="px-2 py-0.5 bg-orange-100 text-kya-orange text-[8px] font-black rounded uppercase">Stage</span>
+                                                                    )}
+                                                                </div>
+                                                                <div class={`text-[10px] font-black uppercase tracking-widest mt-1 ${task.progress === 100 ? 'text-green-500' : task.progress === 0 ? 'text-red-500' : 'text-kya-blue/60'}`}>
+                                                                    Status: {task.progress === 100 ? 'Terminé' : task.progress === 0 ? 'Non débuté' : 'En cours de digitalisation'}
+                                                                </div>
+                                                            </div>
+                                                            <div class="flex gap-2 mr-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <button onClick={() => renameTask(task.id)} class="p-2 text-gray-400 hover:text-kya-orange hover:bg-orange-50 rounded-lg transition-all" title="Renommer">
+                                                                    <Icon name="pencil" className="w-4 h-4" />
+                                                                </button>
+                                                                <button onClick={() => deleteTask(task.id)} class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Supprimer">
+                                                                    <Icon name="trash-2" className="w-4 h-4" />
+                                                                </button>
                                                             </div>
                                                         </div>
-                                                        <div class="flex gap-2 mr-4">
-                                                            <button onClick={() => renameTask(task.id)} class="p-2 text-gray-400 hover:text-kya-orange hover:bg-orange-50 rounded-lg transition-all" title="Renommer">
-                                                                <Icon name="pencil" className="w-4 h-4" />
-                                                            </button>
-                                                            <button onClick={() => deleteTask(task.id)} class="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" title="Supprimer">
-                                                                <Icon name="trash-2" className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                    <div class="flex items-center gap-6 w-full md:w-80">
-                                                        <div class="flex-1 relative pb-4">
-                                                            <input
-                                                                type="range"
-                                                                min="0" max="100"
-                                                                value={task.progress}
-                                                                onChange={(e) => updateProgress(task.id, e.target.value)}
-                                                                class="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-kya-orange"
-                                                            />
-                                                            <div class="flex justify-between absolute bottom-0 left-0 w-full px-1">
-                                                                <span class="text-[8px] font-black text-gray-300">0%</span>
-                                                                <span class="text-[8px] font-black text-gray-300">50%</span>
-                                                                <span class="text-[8px] font-black text-gray-300">100%</span>
+                                                        <div class="flex items-center gap-6 w-full md:w-80">
+                                                            <div class="flex-1 relative pb-4">
+                                                                <input
+                                                                    type="range"
+                                                                    min="0" max="100"
+                                                                    value={task.progress}
+                                                                    onChange={(e) => updateProgress(task.id, e.target.value)}
+                                                                    class="w-full h-2 bg-gray-100 rounded-lg appearance-none cursor-pointer accent-kya-orange"
+                                                                />
+                                                                <div class="flex justify-between absolute bottom-0 left-0 w-full px-1">
+                                                                    <span class="text-[8px] font-black text-gray-300">0%</span>
+                                                                    <span class="text-[8px] font-black text-gray-300">50%</span>
+                                                                    <span class="text-[8px] font-black text-gray-300">100%</span>
+                                                                </div>
+                                                            </div>
+                                                            <div class="w-16 h-12 flex items-center justify-center bg-gray-900 text-white font-black rounded-2xl shadow-lg transform group-hover:scale-110 transition-transform">
+                                                                {task.progress}%
                                                             </div>
                                                         </div>
-                                                        <div class="w-16 h-12 flex items-center justify-center bg-gray-900 text-white font-black rounded-2xl shadow-lg transform rotate-3 scale-110">
-                                                            {task.progress}%
-                                                        </div>
                                                     </div>
-                                                </div>
-                                            ))}
-                                            {activeData.current.tasks.filter(t => t.deptId === dept.id).length === 0 && (
-                                                <div class="text-center py-10 border-2 border-dashed border-gray-100 rounded-3xl">
-                                                    <Icon name="cloud-off" className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-                                                    <p class="text-gray-400 font-black uppercase tracking-widest text-xs">Aucun processus identifié</p>
-                                                </div>
-                                            )}
+                                                ))}
+                                                {filteredTasks.length === 0 && (
+                                                    <div class="text-center py-10 border-2 border-dashed border-gray-100 rounded-3xl">
+                                                        <Icon name="cloud-off" className="w-12 h-12 text-gray-200 mx-auto mb-4" />
+                                                        <p class="text-gray-400 font-black uppercase tracking-widest text-xs">Aucun processus identifié dans cette catégorie</p>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         )
                         }
