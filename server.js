@@ -165,6 +165,86 @@ app.get('/api/export', async (req, res) => {
     }
 });
 
+app.get('/api/export-deployed', async (req, res) => {
+    try {
+        const rawData = fs.readFileSync(DATA_FILE, 'utf8');
+        const data = JSON.parse(rawData);
+        
+        // Filter only deployed tasks
+        const testTasks = data.phases.test.current.tasks.filter(t => t.isDeployed);
+        const preprodTasks = data.phases.preprod.current.tasks.filter(t => t.isDeployed);
+
+        // Map Tasks
+        const taskMap = {};
+        const processTask = (t, phase) => {
+            if (!taskMap[t.id]) {
+                taskMap[t.id] = {
+                    id: t.id,
+                    name: t.name,
+                    deptId: t.deptId,
+                    test: 0,
+                    preprod: 0,
+                    isDeployed: t.isDeployed
+                };
+            }
+            taskMap[t.id][phase] = t.progress;
+        };
+
+        testTasks.forEach(t => processTask(t, 'test'));
+        preprodTasks.forEach(t => processTask(t, 'preprod'));
+
+        const DEPARTMENTS = {
+            'rh': 'Ressources Humaines',
+            'compta': 'Comptabilité/Finances',
+            'achat_stock': 'Achat et Stock',
+            'achats': 'Achat et Stock',
+            'stock': 'Achat et Stock',
+            'logistique': 'Logistique'
+        };
+
+        const workbook = new ExcelJS.Workbook();
+        const sheet = workbook.addWorksheet('Tâches Déployées');
+
+        sheet.columns = [
+            { header: 'Département', key: 'dept', width: 25 },
+            { header: 'Tâche Actuelle (Prod)', key: 'task', width: 40 },
+            { header: 'Pré-Prod (%)', key: 'preprod', width: 15 },
+            { header: 'Statut Déploiement', key: 'status', width: 25 }
+        ];
+
+        sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+        sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16A085' } }; // Green theme for deployed
+        sheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+        Object.values(taskMap).forEach(task => {
+            const row = sheet.addRow({
+                dept: DEPARTMENTS[task.deptId] || task.deptId,
+                task: task.name,
+                preprod: task.preprod / 100,
+                status: 'En Production 🚀'
+            });
+
+            row.getCell('preprod').numFmt = '0%';
+            const statusCell = row.getCell('status');
+            statusCell.font = { color: { argb: 'FF27AE60' }, bold: true };
+
+            row.eachCell((cell) => {
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+            });
+        });
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', 'attachment; filename=Rapport_Taches_Deployees.xlsx');
+
+        await workbook.xlsx.write(res);
+        res.end();
+
+    } catch (e) {
+        console.error('Deployed Export Error:', e);
+        res.status(500).send('Error generating export');
+    }
+});
+
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
