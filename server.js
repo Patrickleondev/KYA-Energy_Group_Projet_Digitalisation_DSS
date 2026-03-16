@@ -154,7 +154,7 @@ app.get('/api/export', async (req, res) => {
         });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename=Rapport_Stage.xlsx');
+        res.setHeader('Content-Disposition', 'attachment; filename="Base_de_Donnees_Complete.xlsx"');
 
         await workbook.xlsx.write(res);
         res.end();
@@ -233,8 +233,17 @@ app.get('/api/export-deployed', async (req, res) => {
             });
         });
 
+        if (Object.keys(taskMap).length === 0) {
+            sheet.addRow({
+                dept: '-',
+                task: "Aucune tâche n'est actuellement marquée comme déployée",
+                preprod: 0,
+                status: '-'
+            });
+        }
+
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename=Rapport_Taches_Deployees.xlsx');
+        res.setHeader('Content-Disposition', 'attachment; filename="Rapport_Taches_Deployees.xlsx"');
 
         await workbook.xlsx.write(res);
         res.end();
