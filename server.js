@@ -84,26 +84,7 @@ app.get('/api/export', async (req, res) => {
     try {
         const rawData = fs.readFileSync(DATA_FILE, 'utf8');
         const data = JSON.parse(rawData);
-        const testTasks = data.phases.test.current.tasks;
         const preprodTasks = data.phases.preprod.current.tasks;
-
-        // Map Tasks
-        const taskMap = {};
-        const processTask = (t, phase) => {
-            if (!taskMap[t.id]) {
-                taskMap[t.id] = {
-                    id: t.id,
-                    name: t.name,
-                    deptId: t.deptId,
-                    test: 0,
-                    preprod: 0
-                };
-            }
-            taskMap[t.id][phase] = t.progress;
-        };
-
-        testTasks.forEach(t => processTask(t, 'test'));
-        preprodTasks.forEach(t => processTask(t, 'preprod'));
 
         const DEPARTMENTS = {
             'rh': 'Ressources Humaines',
@@ -114,42 +95,55 @@ app.get('/api/export', async (req, res) => {
             'logistique': 'Logistique'
         };
 
-        // Create Workbook
         const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet('Suivi Digitalisation');
+        
+        // Group tasks by department
+        const groups = {};
+        preprodTasks.forEach(t => {
+            const dId = t.deptId || 'inconnu';
+            if (!groups[dId]) groups[dId] = [];
+            groups[dId].push(t);
+        });
 
-        sheet.columns = [
-            { header: 'Département', key: 'dept', width: 25 },
-            { header: 'Tâche / Processus', key: 'task', width: 40 },
-            { header: 'Test (%)', key: 'test', width: 15 },
-            { header: 'Pré-Prod (%)', key: 'preprod', width: 15 },
-            { header: 'État', key: 'status', width: 20 }
-        ];
+        // Create a sheet for each department group
+        Object.keys(groups).forEach(deptId => {
+            const deptLabel = DEPARTMENTS[deptId] || deptId;
+            const sheetName = deptLabel.length > 30 ? deptLabel.substring(0, 30) : deptLabel;
+            const sheet = workbook.addWorksheet(sheetName);
 
-        // Style Header
-        sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
-        sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
-        sheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+            sheet.columns = [
+                { header: 'Tâche / Processus', key: 'task', width: 45 },
+                { header: 'Progression (%)', key: 'preprod', width: 18 },
+                { header: 'État', key: 'status', width: 20 },
+                { header: 'Déploiement', key: 'isDeployed', width: 20 }
+            ];
 
-        Object.values(taskMap).forEach(task => {
-            const row = sheet.addRow({
-                dept: DEPARTMENTS[task.deptId] || task.deptId,
-                task: task.name,
-                test: task.test / 100,
-                preprod: task.preprod / 100,
-                status: task.preprod === 100 ? 'Terminé' : (task.preprod > 0 ? 'En cours' : 'À faire')
-            });
+            // Style Header
+            sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+            sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2C3E50' } };
+            sheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
 
-            row.getCell('test').numFmt = '0%';
-            row.getCell('preprod').numFmt = '0%';
+            groups[deptId].forEach(task => {
+                const row = sheet.addRow({
+                    task: task.name,
+                    preprod: (task.progress || 0) / 100,
+                    status: (task.progress || 0) === 100 ? 'Terminé' : ((task.progress || 0) > 0 ? 'En cours' : 'À faire'),
+                    isDeployed: task.isDeployed ? '🚀 Déployé' : '🛠️ En Dev'
+                });
 
-            const statusCell = row.getCell('status');
-            if (task.preprod === 100) statusCell.font = { color: { argb: 'FF27AE60' }, bold: true };
-            else if (task.preprod === 0) statusCell.font = { color: { argb: 'FFC0392B' } };
-            else statusCell.font = { color: { argb: 'FFF39C12' } };
+                row.getCell('preprod').numFmt = '0%';
+                
+                const statusCell = row.getCell('status');
+                if ((task.progress || 0) === 100) statusCell.font = { color: { argb: 'FF27AE60' }, bold: true };
+                else if ((task.progress || 0) === 0) statusCell.font = { color: { argb: 'FFC0392B' } };
+                else statusCell.font = { color: { argb: 'FFF39C12' } };
 
-            row.eachCell((cell) => {
-                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                const deployCell = row.getCell('isDeployed');
+                if (task.isDeployed) deployCell.font = { color: { argb: 'FF2980B9' }, bold: true };
+
+                row.eachCell((cell) => {
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                });
             });
         });
 
@@ -171,27 +165,7 @@ app.get('/api/export-deployed', async (req, res) => {
         const data = JSON.parse(rawData);
         
         // Filter only deployed tasks
-        const testTasks = data.phases.test.current.tasks.filter(t => t.isDeployed);
         const preprodTasks = data.phases.preprod.current.tasks.filter(t => t.isDeployed);
-
-        // Map Tasks
-        const taskMap = {};
-        const processTask = (t, phase) => {
-            if (!taskMap[t.id]) {
-                taskMap[t.id] = {
-                    id: t.id,
-                    name: t.name,
-                    deptId: t.deptId,
-                    test: 0,
-                    preprod: 0,
-                    isDeployed: t.isDeployed
-                };
-            }
-            taskMap[t.id][phase] = t.progress;
-        };
-
-        testTasks.forEach(t => processTask(t, 'test'));
-        preprodTasks.forEach(t => processTask(t, 'preprod'));
 
         const DEPARTMENTS = {
             'rh': 'Ressources Humaines',
@@ -203,43 +177,51 @@ app.get('/api/export-deployed', async (req, res) => {
         };
 
         const workbook = new ExcelJS.Workbook();
-        const sheet = workbook.addWorksheet('Tâches Déployées');
+        
+        // Group tasks by department
+        const groups = {};
+        preprodTasks.forEach(t => {
+            const dId = t.deptId || 'inconnu';
+            if (!groups[dId]) groups[dId] = [];
+            groups[dId].push(t);
+        });
 
-        sheet.columns = [
-            { header: 'Département', key: 'dept', width: 25 },
-            { header: 'Tâche Actuelle (Prod)', key: 'task', width: 40 },
-            { header: 'Pré-Prod (%)', key: 'preprod', width: 15 },
-            { header: 'Statut Déploiement', key: 'status', width: 25 }
-        ];
+        // Create sheets for each department
+        Object.keys(groups).forEach(deptId => {
+            const deptLabel = DEPARTMENTS[deptId] || deptId;
+            const sheetName = deptLabel.length > 30 ? deptLabel.substring(0, 30) : deptLabel;
+            const sheet = workbook.addWorksheet(sheetName);
 
-        sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
-        sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16A085' } }; // Green theme for deployed
-        sheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+            sheet.columns = [
+                { header: 'Tâche Actuelle (Prod)', key: 'task', width: 45 },
+                { header: 'Progression (%)', key: 'preprod', width: 18 },
+                { header: 'Statut Déploiement', key: 'status', width: 25 }
+            ];
 
-        Object.values(taskMap).forEach(task => {
-            const row = sheet.addRow({
-                dept: DEPARTMENTS[task.deptId] || task.deptId,
-                task: task.name,
-                preprod: task.preprod / 100,
-                status: 'En Production 🚀'
-            });
+            sheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
+            sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF16A085' } }; 
+            sheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
 
-            row.getCell('preprod').numFmt = '0%';
-            const statusCell = row.getCell('status');
-            statusCell.font = { color: { argb: 'FF27AE60' }, bold: true };
+            groups[deptId].forEach(task => {
+                const row = sheet.addRow({
+                    task: task.name,
+                    preprod: (task.progress || 0) / 100,
+                    status: 'En Production 🚀'
+                });
 
-            row.eachCell((cell) => {
-                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                row.getCell('preprod').numFmt = '0%';
+                const statusCell = row.getCell('status');
+                statusCell.font = { color: { argb: 'FF27AE60' }, bold: true };
+
+                row.eachCell((cell) => {
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                });
             });
         });
 
-        if (Object.keys(taskMap).length === 0) {
-            sheet.addRow({
-                dept: '-',
-                task: "Aucune tâche n'est actuellement marquée comme déployée",
-                preprod: 0,
-                status: '-'
-            });
+        if (Object.keys(groups).length === 0) {
+            const sheet = workbook.addWorksheet('Vide');
+            sheet.addRow(["Aucune tâche n'est actuellement marquée comme déployée"]);
         }
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
