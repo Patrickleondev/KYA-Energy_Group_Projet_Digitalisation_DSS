@@ -87,12 +87,12 @@ app.get('/api/export', async (req, res) => {
         const preprodTasks = data.phases.preprod.current.tasks;
 
         const DEPARTMENTS = {
-            'rh': 'Ressources Humaines',
-            'compta': 'Comptabilité/Finances',
-            'achat_stock': 'Achat et Stock',
-            'achats': 'Achat et Stock',
-            'stock': 'Achat et Stock',
-            'logistique': 'Logistique'
+            'rh': '🏢 Ressources Humaines',
+            'compta': '💰 Comptabilité_Finances',
+            'achat_stock': '📦 Achat et Stock',
+            'achats': '📦 Achat et Stock',
+            'stock': '📦 Achat et Stock',
+            'logistique': '🚚 Logistique'
         };
 
         const workbook = new ExcelJS.Workbook();
@@ -105,17 +105,18 @@ app.get('/api/export', async (req, res) => {
             groups[dId].push(t);
         });
 
-        // Create a sheet for each department group
+        // Create a worksheet for each department group
         Object.keys(groups).forEach(deptId => {
             const deptLabel = DEPARTMENTS[deptId] || deptId;
-            const sheetName = deptLabel.length > 30 ? deptLabel.substring(0, 30) : deptLabel;
+            // Clean sheet name (max 31 chars, no special shell chars)
+            const sheetName = deptLabel.substring(0, 31).replace(/[\\\/\?\*\[\]]/g, '');
             const sheet = workbook.addWorksheet(sheetName);
 
             sheet.columns = [
-                { header: 'Tâche / Processus', key: 'task', width: 45 },
+                { header: 'Tâche / Processus Digitalisable', key: 'task', width: 50 },
                 { header: 'Progression (%)', key: 'preprod', width: 18 },
-                { header: 'État', key: 'status', width: 20 },
-                { header: 'Déploiement', key: 'isDeployed', width: 20 }
+                { header: 'État', key: 'status', width: 22 },
+                { header: 'Utilisation (Production)', key: 'isDeployed', width: 25 }
             ];
 
             // Style Header
@@ -124,18 +125,19 @@ app.get('/api/export', async (req, res) => {
             sheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
 
             groups[deptId].forEach(task => {
+                const progress = task.progress || 0;
                 const row = sheet.addRow({
                     task: task.name,
-                    preprod: (task.progress || 0) / 100,
-                    status: (task.progress || 0) === 100 ? 'Terminé' : ((task.progress || 0) > 0 ? 'En cours' : 'À faire'),
-                    isDeployed: task.isDeployed ? '🚀 Déployé' : '🛠️ En Dev'
+                    preprod: progress / 100,
+                    status: progress === 100 ? '✅ Terminée' : (progress > 0 ? '⏳ En cours' : '❌ À faire'),
+                    isDeployed: task.isDeployed ? '🚀 Déployée ✅' : '🛠️ En Dev'
                 });
 
                 row.getCell('preprod').numFmt = '0%';
                 
                 const statusCell = row.getCell('status');
-                if ((task.progress || 0) === 100) statusCell.font = { color: { argb: 'FF27AE60' }, bold: true };
-                else if ((task.progress || 0) === 0) statusCell.font = { color: { argb: 'FFC0392B' } };
+                if (progress === 100) statusCell.font = { color: { argb: 'FF27AE60' }, bold: true };
+                else if (progress === 0) statusCell.font = { color: { argb: 'FFC0392B' } };
                 else statusCell.font = { color: { argb: 'FFF39C12' } };
 
                 const deployCell = row.getCell('isDeployed');
@@ -148,7 +150,10 @@ app.get('/api/export', async (req, res) => {
         });
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename="Base_de_Donnees_Complete.xlsx"');
+        res.setHeader('Content-Disposition', 'attachment; filename="Base_de_Donnees_Par_Equipe.xlsx"');
+
+        await workbook.xlsx.write(res);
+        res.end();
 
         await workbook.xlsx.write(res);
         res.end();
@@ -163,22 +168,20 @@ app.get('/api/export-deployed', async (req, res) => {
     try {
         const rawData = fs.readFileSync(DATA_FILE, 'utf8');
         const data = JSON.parse(rawData);
-        
-        // Filter only deployed tasks
         const preprodTasks = data.phases.preprod.current.tasks.filter(t => t.isDeployed);
 
         const DEPARTMENTS = {
-            'rh': 'Ressources Humaines',
-            'compta': 'Comptabilité/Finances',
-            'achat_stock': 'Achat et Stock',
-            'achats': 'Achat et Stock',
-            'stock': 'Achat et Stock',
-            'logistique': 'Logistique'
+            'rh': '🏢 Ressources Humaines',
+            'compta': '💰 Comptabilité_Finances',
+            'achat_stock': '📦 Achat et Stock',
+            'achats': '📦 Achat et Stock',
+            'stock': '📦 Achat et Stock',
+            'logistique': '🚚 Logistique'
         };
 
         const workbook = new ExcelJS.Workbook();
         
-        // Group tasks by department
+        // Grouping
         const groups = {};
         preprodTasks.forEach(t => {
             const dId = t.deptId || 'inconnu';
@@ -186,14 +189,13 @@ app.get('/api/export-deployed', async (req, res) => {
             groups[dId].push(t);
         });
 
-        // Create sheets for each department
         Object.keys(groups).forEach(deptId => {
             const deptLabel = DEPARTMENTS[deptId] || deptId;
-            const sheetName = deptLabel.length > 30 ? deptLabel.substring(0, 30) : deptLabel;
+            const sheetName = deptLabel.substring(0, 31).replace(/[\\\/\?\*\[\]]/g, '');
             const sheet = workbook.addWorksheet(sheetName);
 
             sheet.columns = [
-                { header: 'Tâche Actuelle (Prod)', key: 'task', width: 45 },
+                { header: 'Tâche Actuelle (Prod)', key: 'task', width: 50 },
                 { header: 'Progression (%)', key: 'preprod', width: 18 },
                 { header: 'Statut Déploiement', key: 'status', width: 25 }
             ];
@@ -206,7 +208,7 @@ app.get('/api/export-deployed', async (req, res) => {
                 const row = sheet.addRow({
                     task: task.name,
                     preprod: (task.progress || 0) / 100,
-                    status: 'En Production 🚀'
+                    status: '🚀 En Production'
                 });
 
                 row.getCell('preprod').numFmt = '0%';
@@ -225,7 +227,7 @@ app.get('/api/export-deployed', async (req, res) => {
         }
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', 'attachment; filename="Rapport_Taches_Deployees.xlsx"');
+        res.setHeader('Content-Disposition', 'attachment; filename="Rapport_Taches_Deployees_Par_Equipe.xlsx"');
 
         await workbook.xlsx.write(res);
         res.end();
