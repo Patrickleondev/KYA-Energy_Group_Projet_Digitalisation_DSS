@@ -83,7 +83,7 @@
         const { useState, useEffect, useMemo } = React;
         const {
             BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-            LineChart, Line, Cell, PieChart, Pie, Legend
+            LineChart, Line, Cell, PieChart, Pie, Legend, LabelList
         } = Recharts;
 
         // Icons placeholder (since Lucide needs to be initialized after render)
@@ -869,18 +869,18 @@
                                             </div>
                                             <div id="chart-status" class="flex-1 flex items-center justify-center min-h-[300px]">
                                                 <ResponsiveContainer width="100%" height={300}>
-                                                    <PieChart>
+                                                    <PieChart margin={{ top: 30, right: 40, left: 40, bottom: 20 }}>
                                                         <Pie
                                                             data={stats.statusData}
                                                             cx="50%"
                                                             cy="50%"
                                                             innerRadius={60}
-                                                            outerRadius={100}
+                                                            outerRadius={85}
                                                             paddingAngle={5}
                                                             dataKey="value"
                                                             stroke="none"
-                                                            label={({ name, percent }) => percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
-                                                            labelLine={false}
+                                                            labelLine={true}
+                                                            label={({ name, value, percent }) => percent > 0 ? `${name}: ${value}` : ''}
                                                         >
                                                             {stats.statusData.map((entry, index) => (
                                                                 <Cell key={`cell-${index}`} fill={entry.color} />
@@ -906,17 +906,18 @@
                                             <div id="chart-deploy" class="flex-1 flex items-center justify-center min-h-[300px]">
                                                 {stats.summary.digitized > 0 ? (
                                                     <ResponsiveContainer width="100%" height={300}>
-                                                        <PieChart>
+                                                        <PieChart margin={{ top: 30, right: 40, left: 40, bottom: 20 }}>
                                                             <Pie
                                                                 data={stats.deployData}
                                                                 cx="50%"
                                                                 cy="50%"
-                                                                innerRadius={80}
-                                                                outerRadius={100}
+                                                                innerRadius={60}
+                                                                outerRadius={85}
                                                                 paddingAngle={5}
                                                                 dataKey="value"
                                                                 stroke="none"
-                                                                label={({ name, percent }) => percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
+                                                                labelLine={true}
+                                                                label={({ name, value, percent }) => percent > 0 ? `${name}: ${value}` : ''}
                                                             >
                                                                 {stats.deployData.map((entry, index) => (
                                                                     <Cell key={`cell-${index}`} fill={entry.color} />
@@ -961,13 +962,14 @@
                                                     <div id={`chart-${dept.id}`} class="flex-1 flex flex-col items-center justify-center min-h-[150px]">
                                                         {dept.total > 0 ? (
                                                             <ResponsiveContainer width="100%" height={150}>
-                                                                <BarChart data={dept.chartData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
+                                                                <BarChart data={dept.chartData} margin={{ top: 25, right: 0, left: 0, bottom: 0 }}>
                                                                     <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#cbd5e1' }} />
                                                                     <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
                                                                     <Bar dataKey="value" radius={[4, 4, 4, 4]} barSize={20}>
                                                                         {dept.chartData.map((entry, index) => (
                                                                             <Cell key={`cell-${index}`} fill={entry.color} />
                                                                         ))}
+                                                                        <LabelList dataKey="value" position="top" style={{ fontSize: '10px', fontWeight: 'bold', fill: '#64748b' }} formatter={(val) => val > 0 ? val : ''} />
                                                                     </Bar>
                                                                 </BarChart>
                                                             </ResponsiveContainer>
