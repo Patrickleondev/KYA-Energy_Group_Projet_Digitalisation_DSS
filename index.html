@@ -83,7 +83,7 @@
         const { useState, useEffect, useMemo } = React;
         const {
             BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-            LineChart, Line, Cell
+            LineChart, Line, Cell, PieChart, Pie, Legend
         } = Recharts;
 
         // Icons placeholder (since Lucide needs to be initialized after render)
@@ -152,68 +152,25 @@
             const [view, setView] = useState('dashboard'); // dashboard | tasks | admin
             const [rhFilter, setRhFilter] = useState('all'); // all | employe | stagiaire
             const [data, setData] = useState(null);
-            const [loading, setLoading] = useState(true);
-
-            // Accessor for the separate active phase
-            const activeData = useMemo(() => {
-                if (!data || !data.phases) return null;
-                return data.phases[data.activePhase];
-            }, [data]);
-
-            // Helper to update specific phase data
-            const updatePhaseData = (phaseName, updateFn) => {
-                setData(prev => {
-                    const phase = prev.phases[phaseName];
-                    const newPhase = updateFn(phase);
-                    return {
-                        ...prev,
-                        phases: {
-                            ...prev.phases,
-                            [phaseName]: newPhase
-                        }
-                    };
-                });
-            };
-
-            // Switch Phase Handler
-            const switchPhase = (phase) => {
-                setData(prev => ({ ...prev, activePhase: phase }));
+            const [loading, setLoading] = useState(true);            // Helper to update data
+            const updateData = (updateFn) => {
+                setData(prev => updateFn(prev));
             };
 
             // Load from Server API
+
             useEffect(() => {
                 const loadData = async () => {
                     try {
                         const res = await fetch('/api/data');
                         const serverData = await res.json();
 
-                        // -- Migration Logic --
-                        // If root 'history' exists, it's the old format.
-                        if (serverData.history && !serverData.phases) {
-                            console.log("Migrating legacy data to phases structure...");
-
-                            // Create clean Pre-Prod start (same tasks, 0 progress, no history)
-                            const initialTasks = serverData.current.tasks.map(t => ({ ...t, progress: 0 }));
-
-                            const migratedData = {
-                                activePhase: 'test',
-                                phases: {
-                                    test: {
-                                        history: serverData.history,
-                                        current: serverData.current
-                                    },
-                                    preprod: {
-                                        history: [],
-                                        current: {
-                                            dateRange: { start: '', end: '' },
-                                            tasks: initialTasks
-                                        }
-                                    }
-                                }
-                            };
-                            setData(migratedData);
+                        // Extract preprod data dynamically as the only source of truth
+                        if (serverData.phases && serverData.phases.preprod) {
+                            setData(serverData.phases.preprod);
+                        } else if (serverData.current && serverData.history) {
+                             setData(serverData);
                         } else {
-                            // Already migrated or new
                             setData(serverData);
                         }
                         setLoading(false);
@@ -239,11 +196,11 @@
                 }
             }, [data, loading]);
 
-            // Calculations based on activeData
+            // Calculations based on data
             const stats = useMemo(() => {
-                if (!activeData) return null;
+                if (!data) return null;
                 const deptStats = DEPARTMENTS.map(d => {
-                    const deptTasks = activeData.current.tasks.filter(t => t.deptId === d.id);
+                    const deptTasks = data.current.tasks.filter(t => t.deptId === d.id);
                     const avg = deptTasks.length > 0
                         ? Math.round(deptTasks.reduce((acc, t) => acc + t.progress, 0) / deptTasks.length)
                         : 0;
@@ -257,6 +214,13 @@
                 });
 
                 const totalAvg = Math.round(deptStats.reduce((acc, d) => acc + d.progress, 0) / deptStats.length);
+
+                // Global Counts
+                const tasks = activeData.current.tasks;
+                const totalTasks = tasks.length;
+                const digitizedTasks = tasks.filter(t => t.progress === 100).length;
+                const inProgressTasks = tasks.filter(t => t.progress > 0 && t.progress < 100).length;
+                const deployedTasks = tasks.filter(t => t.isDeployed).length;
 
                 // Global comparison
                 const lastWeekEntries = activeData.history[activeData.history.length - 1];
@@ -272,10 +236,39 @@
                         : 0;
                     return { name: `S${h.week}`, avg: hAvg };
                 });
-                historyData.push({ name: `S${activeData.history.length + 1}`, avg: totalAvg });
+                historyData.push({ name: `S${data.history.length + 1}`, avg: totalAvg });
 
-                return { deptStats, totalAvg, lastTotalAvg, totalDiff, historyData };
-            }, [activeData]);
+                const summary = {
+                    total: totalTasks,
+                    digitized: digitizedTasks,
+                    inProgress: inProgressTasks,
+                    deployed: deployedTasks
+                };
+
+                const todo = summary.total - summary.digitized - summary.inProgress;
+
+                const statusData = [
+                    { name: 'Terminé', value: summary.digitized, color: '#3A9E3E' },
+                    { name: 'En cours', value: summary.inProgress, color: '#F1802D' },
+                    { name: 'À faire', value: todo, color: '#E5E7EB' }
+                ].filter(d => d.value > 0);
+
+                const deployData = [
+                    { name: 'En production', value: summary.deployed, color: '#0054A6' },
+                    { name: 'Non déployé', value: Math.max(0, summary.digitized - summary.deployed), color: '#3A9E3E' }
+                ].filter(d => d.value > 0);
+
+                return { 
+                    deptStats, 
+                    totalAvg, 
+                    lastTotalAvg, 
+                    totalDiff, 
+                    historyData,
+                    statusData,
+                    deployData,
+                    summary
+                };
+            }, [data]);
 
             const addTask = (deptId) => {
                 const name = prompt("Nom de la tâche digitalisable :");
@@ -300,26 +293,26 @@
                     ...(type && { type })
                 };
 
-                updatePhaseData(data.activePhase, (phase) => ({
-                    ...phase,
+                updateData((prev) => ({
+                    ...prev,
                     current: {
-                        ...phase.current,
-                        tasks: [...phase.current.tasks, newTask]
+                        ...prev.current,
+                        tasks: [...prev.current.tasks, newTask]
                     }
                 }));
             };
 
             const renameTask = (taskId) => {
-                if (!activeData) return;
-                const task = activeData.current.tasks.find(t => t.id === taskId);
+                if (!data) return;
+                const task = data.current.tasks.find(t => t.id === taskId);
                 const newName = prompt("Renommer la tâche :", task.name);
                 if (!newName || newName === task.name) return;
 
-                updatePhaseData(data.activePhase, (phase) => ({
-                    ...phase,
+                updateData((prev) => ({
+                    ...prev,
                     current: {
-                        ...phase.current,
-                        tasks: phase.current.tasks.map(t =>
+                        ...prev.current,
+                        tasks: prev.current.tasks.map(t =>
                             t.id === taskId ? { ...t, name: newName } : t
                         )
                     }
@@ -327,25 +320,25 @@
             };
 
             const deleteTask = (taskId) => {
-                if (!activeData) return;
-                const task = activeData.current.tasks.find(t => t.id === taskId);
+                if (!data) return;
+                const task = data.current.tasks.find(t => t.id === taskId);
                 if (!confirm(`Voulez-vous supprimer la tâche "${task.name}" ?`)) return;
 
-                updatePhaseData(data.activePhase, (phase) => ({
-                    ...phase,
+                updateData((prev) => ({
+                    ...prev,
                     current: {
-                        ...phase.current,
-                        tasks: phase.current.tasks.filter(t => t.id !== taskId)
+                        ...prev.current,
+                        tasks: prev.current.tasks.filter(t => t.id !== taskId)
                     }
                 }));
             };
 
             const updateProgress = (taskId, value) => {
-                updatePhaseData(data.activePhase, (phase) => ({
-                    ...phase,
+                updateData((prev) => ({
+                    ...prev,
                     current: {
-                        ...phase.current,
-                        tasks: phase.current.tasks.map(t =>
+                        ...prev.current,
+                        tasks: prev.current.tasks.map(t =>
                             t.id === taskId ? { ...t, progress: parseInt(value) } : t
                         )
                     }
@@ -354,11 +347,11 @@
 
             // Cycle urgency: 1 → 2 → 3 → 1
             const updateUrgency = (taskId) => {
-                updatePhaseData(data.activePhase, (phase) => ({
-                    ...phase,
+                updateData((prev) => ({
+                    ...prev,
                     current: {
-                        ...phase.current,
-                        tasks: phase.current.tasks.map(t => {
+                        ...prev.current,
+                        tasks: prev.current.tasks.map(t => {
                             if (t.id !== taskId) return t;
                             const current = t.urgency || 3;
                             const next = current >= 3 ? 1 : current + 1;
@@ -369,11 +362,11 @@
             };
 
             const toggleDeployed = (taskId) => {
-                updatePhaseData(data.activePhase, (phase) => ({
-                    ...phase,
+                updateData((prev) => ({
+                    ...prev,
                     current: {
-                        ...phase.current,
-                        tasks: phase.current.tasks.map(t =>
+                        ...prev.current,
+                        tasks: prev.current.tasks.map(t =>
                             t.id === taskId ? { ...t, isDeployed: !t.isDeployed } : t
                         )
                     }
@@ -381,61 +374,60 @@
             };
 
             const updateDateRange = (field, value) => {
-                updatePhaseData(data.activePhase, (phase) => ({
-                    ...phase,
+                updateData((prev) => ({
+                    ...prev,
                     current: {
-                        ...phase.current,
-                        dateRange: { ...phase.current.dateRange, [field]: value }
+                        ...prev.current,
+                        dateRange: { ...prev.current.dateRange, [field]: value }
                     }
                 }));
             };
 
             const archiveWeek = () => {
-                if (!confirm(`[${data.activePhase.toUpperCase()}] Voulez-vous clôturer cette semaine et enregistrer les moyennes ?`)) return;
+                if (!confirm(`Voulez-vous clôturer cette semaine et enregistrer les moyennes ?`)) return;
 
                 const weekEntry = {
-                    week: activeData.history.length + 1,
-                    date: activeData.current.dateRange.start && activeData.current.dateRange.end
-                        ? `${activeData.current.dateRange.start} au ${activeData.current.dateRange.end}`
+                    week: data.history.length + 1,
+                    date: data.current.dateRange.start && data.current.dateRange.end
+                        ? `${data.current.dateRange.start} au ${data.current.dateRange.end}`
                         : new Date().toISOString().split('T')[0],
                     averages: stats.deptStats.map(d => ({ id: d.id, val: d.progress })),
-                    range: { ...activeData.current.dateRange }
+                    range: { ...data.current.dateRange }
                 };
 
-                updatePhaseData(data.activePhase, (phase) => ({
-                    ...phase,
-                    history: [...phase.history, weekEntry],
+                updateData((prev) => ({
+                    ...prev,
+                    history: [...prev.history, weekEntry],
                     current: {
-                        ...phase.current,
+                        ...prev.current,
                         dateRange: { start: '', end: '' }
                     }
                 }));
-                alert(`Semaine clôturée avec succès (${data.activePhase.toUpperCase()}) !`);
+                alert(`Semaine clôturée avec succès !`);
             };
 
             const deleteLastWeek = () => {
-                if (!activeData || activeData.history.length === 0) return alert("L'historique est déjà vide.");
-                if (!confirm(`Voulez-vous vraiment supprimer l'archive de la Semaine ${activeData.history.length} ?`)) return;
+                if (!data || data.history.length === 0) return alert("L'historique est déjà vide.");
+                if (!confirm(`Voulez-vous vraiment supprimer l'archive de la Semaine ${data.history.length} ?`)) return;
 
-                updatePhaseData(data.activePhase, (phase) => ({
-                    ...phase,
-                    history: phase.history.slice(0, -1)
+                updateData((prev) => ({
+                    ...prev,
+                    history: prev.history.slice(0, -1)
                 }));
             };
 
             const resetAllData = () => {
-                if (!confirm(`ATTENTION : Cela va supprimer TOUTES les données (tâches et historique) de la phase ${data.activePhase.toUpperCase()}. Continuer ?`)) return;
+                if (!confirm(`ATTENTION : Cela va supprimer TOUTES les données (tâches et historique). Continuer ?`)) return;
 
-                // Reset only the active phase, keep defaults
                 const defaultTasks = [
                     { id: 1, deptId: 'rh', name: 'Recrutement digital', progress: 0 },
                     { id: 2, deptId: 'rh', name: 'Gestion des congés', progress: 0 },
                     { id: 3, deptId: 'compta', name: 'Facturation électronique', progress: 0 },
                     { id: 4, deptId: 'achats', name: 'Portail fournisseurs', progress: 0 },
-                    { id: 5, deptId: 'stock', name: 'Suivi temps réel', progress: 0 },
+                    { id: 5, deptId: 'Stock', name: 'Suivi temps réel', progress: 0 },
                 ];
 
-                updatePhaseData(data.activePhase, () => ({
+                updateData(() => ({
                     history: [],
                     current: {
                         dateRange: { start: '', end: '' },
@@ -446,9 +438,9 @@
             };
 
             const editHistoryDate = (week, field, value) => {
-                updatePhaseData(data.activePhase, (phase) => ({
-                    ...phase,
-                    history: phase.history.map(h => {
+                updateData((prev) => ({
+                    ...prev,
+                    history: prev.history.map(h => {
                         if (h.week === week) {
                             const newRange = { ...(h.range || { start: '', end: '' }), [field]: value };
                             return {
@@ -463,7 +455,7 @@
             };
 
             const submitFeedback = async () => {
-                const message = prompt("Votre feedback ou suggestion pour cette phase :");
+                const message = prompt("Votre feedback ou suggestion :");
                 if (!message) return;
 
                 try {
@@ -471,7 +463,7 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            phase: data.activePhase,
+                            phase: 'preprod',
                             message,
                             user: 'User' // simplistic user tracking
                         })
@@ -481,6 +473,35 @@
                     console.error(e);
                     alert("Erreur lors de l'envoi du feedback.");
                 }
+            };
+
+            const downloadChart = (chartId, fileName) => {
+                const chartNode = document.getElementById(chartId);
+                if (!chartNode) return;
+                const svgElement = chartNode.querySelector('svg');
+                if (!svgElement) return;
+
+                const svgData = new XMLSerializer().serializeToString(svgElement);
+                const canvas = document.createElement("canvas");
+                const ctx = canvas.getContext("2d");
+                const img = new Image();
+
+                const svgBase64 = encodeURIComponent(svgData);
+                const url = `data:image/svg+xml;charset=utf-8,${svgBase64}`;
+
+                img.onload = () => {
+                    canvas.width = svgElement.clientWidth.baseVal ? svgElement.clientWidth.baseVal.value : 400;
+                    canvas.height = svgElement.clientHeight.baseVal ? svgElement.clientHeight.baseVal.value : 300;
+                    ctx.fillStyle = "white"; // Solid background
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0);
+
+                    const a = document.createElement("a");
+                    a.download = `${fileName}.png`;
+                    a.href = canvas.toDataURL("image/png");
+                    a.click();
+                };
+                img.src = url;
             };
 
             if (loading || !data) return (
@@ -514,6 +535,13 @@
                                 <span class="font-medium">Tableau de Bord</span>
                             </button>
                             <button
+                                onClick={() => setView('stats')}
+                                class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${view === 'stats' ? 'bg-kya-blue text-white shadow-md' : 'text-gray-500 hover:bg-white hover:text-kya-blue'}`}
+                            >
+                                <Icon name="BarChart3" className="w-5 h-5" />
+                                <span class="font-medium">Récapitulatif Stats</span>
+                            </button>
+                            <button
                                 onClick={() => setView('tasks')}
                                 class={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${view === 'tasks' ? 'bg-kya-blue text-white shadow-md' : 'text-gray-500 hover:bg-white hover:text-kya-blue'}`}
                             >
@@ -528,23 +556,6 @@
                                 <span class="font-medium">Administration</span>
                             </button>
                         </nav>
-
-                        <div class="px-6 py-2">
-                            <div class="p-1 bg-gray-100 rounded-xl flex items-center p-1">
-                                <button
-                                    onClick={() => switchPhase('test')}
-                                    class={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${data.activePhase === 'test' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                >
-                                    Test
-                                </button>
-                                <button
-                                    onClick={() => switchPhase('preprod')}
-                                    class={`flex-1 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${data.activePhase === 'preprod' ? 'bg-kya-orange text-white shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
-                                >
-                                    Pre-Prod
-                                </button>
-                            </div>
-                        </div>
 
                         <div class="p-4 bg-orange-50 m-4 rounded-2xl border border-orange-100">
                             <p class="text-[10px] text-kya-orange font-bold mb-1 uppercase tracking-widest text-center">Digitalisation Globale</p>
@@ -571,7 +582,10 @@
                         <header class="flex justify-between items-center mb-10">
                             <div>
                                 <h1 class="text-3xl font-black text-gray-900 tracking-tight flex items-center gap-4">
-                                    {view === 'dashboard' ? 'Digitalisation Services Support' : 'Configuration des Tâches'}
+                                    {view === 'dashboard' ? 'Digitalisation Services Support' : 
+                                     view === 'stats' ? 'Récapitulatif des Statistiques' :
+                                     view === 'admin' ? 'Administration & Paramètres' : 
+                                     'Configuration des Tâches'}
                                     {data.activePhase === 'preprod' && (
                                         <span class="px-3 py-1 bg-kya-orange text-white text-xs rounded-full uppercase tracking-widest shadow-lg shadow-orange-200 animate-pulse">Pre-Production</span>
                                     )}
@@ -745,43 +759,238 @@
                                         </div>
                                     </div>
                                 </div>
-
-                                {/* History Section */}
-                                <div class="bg-white p-8 rounded-3xl shadow-sm border border-gray-50 overflow-hidden mt-10">
-                                    <div class="flex justify-between items-center mb-6">
-                                        <h3 class="font-black text-gray-900 text-xl tracking-tight">Historique des Digitalisations</h3>
-                                        <Icon name="archive" className="w-6 h-6 text-gray-300" />
+                            </div>
+                        ) : view === 'stats' ? (
+                            <div class="animate-fade-in space-y-10">
+                                {/* Stats Cards Grid */}
+                                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                                    {/* Total Tasks */}
+                                    <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-50 hover:shadow-xl transition-all group overflow-hidden relative">
+                                        <div class="flex justify-between items-start mb-6">
+                                            <div class="p-4 bg-gray-900 text-white rounded-2xl shadow-lg ring-4 ring-gray-50">
+                                                <Icon name="list" className="w-8 h-8" />
+                                            </div>
+                                            <div class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Total Global</div>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <h3 class="text-4xl font-black text-gray-900">{stats.summary.total}</h3>
+                                            <p class="text-xs font-bold text-gray-500 uppercase tracking-tight">Tâches digitalisables</p>
+                                        </div>
+                                        <div class="absolute -right-4 -bottom-4 opacity-5 transform rotate-12 group-hover:scale-110 transition-transform">
+                                            <Icon name="list" className="w-32 h-32" />
+                                        </div>
                                     </div>
+
+                                    {/* Digitized */}
+                                    <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-50 hover:shadow-xl transition-all group overflow-hidden relative border-l-8 border-l-kya-green">
+                                        <div class="flex justify-between items-start mb-6">
+                                            <div class="p-4 bg-kya-green text-white rounded-2xl shadow-lg ring-4 ring-green-50">
+                                                <Icon name="check-circle" className="w-8 h-8" />
+                                            </div>
+                                            <div class="px-3 py-1 bg-green-100 text-green-600 rounded-full text-[10px] font-black uppercase tracking-widest">
+                                                {Math.round((stats.summary.digitized / stats.summary.total) * 100) || 0}%
+                                            </div>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <h3 class="text-4xl font-black text-gray-900">{stats.summary.digitized}</h3>
+                                            <p class="text-xs font-bold text-gray-500 uppercase tracking-tight">Déjà Digitalisées</p>
+                                        </div>
+                                        <div class="absolute -right-4 -bottom-4 opacity-5 transform -rotate-12 group-hover:scale-110 transition-transform">
+                                            <Icon name="check-circle" className="w-32 h-32 text-kya-green" />
+                                        </div>
+                                    </div>
+
+                                    {/* In Progress */}
+                                    <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-50 hover:shadow-xl transition-all group overflow-hidden relative border-l-8 border-l-kya-orange">
+                                        <div class="flex justify-between items-start mb-6">
+                                            <div class="p-4 bg-kya-orange text-white rounded-2xl shadow-lg ring-4 ring-orange-50">
+                                                <Icon name="activity" className="w-8 h-8" />
+                                            </div>
+                                            <div class="px-3 py-1 bg-orange-100 text-kya-orange rounded-full text-[10px] font-black uppercase tracking-widest">
+                                                {Math.round((stats.summary.inProgress / stats.summary.total) * 100) || 0}%
+                                            </div>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <h3 class="text-4xl font-black text-gray-900">{stats.summary.inProgress}</h3>
+                                            <p class="text-xs font-bold text-gray-500 uppercase tracking-tight">En cours</p>
+                                        </div>
+                                        <div class="absolute -right-4 -bottom-4 opacity-5 transform rotate-6 group-hover:scale-110 transition-transform">
+                                            <Icon name="activity" className="w-32 h-32 text-kya-orange" />
+                                        </div>
+                                    </div>
+
+                                    {/* Already Used (Deployed) */}
+                                    <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-50 hover:shadow-xl transition-all group overflow-hidden relative border-l-8 border-l-kya-blue">
+                                        <div class="flex justify-between items-start mb-6">
+                                            <div class="p-4 bg-kya-blue text-white rounded-2xl shadow-lg ring-4 ring-blue-50">
+                                                <Icon name="rocket" className="w-8 h-8" />
+                                            </div>
+                                            <div class="px-3 py-1 bg-blue-100 text-kya-blue rounded-full text-[10px] font-black uppercase tracking-widest">
+                                                {Math.round((stats.summary.deployed / stats.summary.total) * 100) || 0}%
+                                            </div>
+                                        </div>
+                                        <div class="space-y-1">
+                                            <h3 class="text-4xl font-black text-gray-900">{stats.summary.deployed}</h3>
+                                            <p class="text-xs font-bold text-gray-500 uppercase tracking-tight">Déjà Utilisées</p>
+                                        </div>
+                                        <div class="absolute -right-4 -bottom-4 opacity-5 transform -rotate-12 group-hover:scale-110 transition-transform">
+                                            <Icon name="rocket" className="w-32 h-32 text-kya-blue" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Interactive Charts Module */}
+                                {stats.summary.total > 0 && (
+                                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                        {/* Chart 1: Repartition Globale */}
+                                        <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-50 flex flex-col relative group">
+                                            <div class="flex justify-between items-center mb-6">
+                                                <div>
+                                                    <h3 class="font-black text-gray-900 text-xl tracking-tight">Répartition Globale</h3>
+                                                    <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">État de toutes les tâches</p>
+                                                </div>
+                                                <button onClick={() => downloadChart('chart-status', 'repartition_globale')} class="p-2 bg-gray-50 text-gray-400 hover:text-kya-blue hover:bg-blue-50 rounded-xl transition-all shadow-sm" title="Télécharger en image">
+                                                    <Icon name="download" className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                            <div id="chart-status" class="flex-1 flex items-center justify-center min-h-[300px]">
+                                                <ResponsiveContainer width="100%" height={300}>
+                                                    <PieChart>
+                                                        <Pie
+                                                            data={stats.statusData}
+                                                            cx="50%"
+                                                            cy="50%"
+                                                            innerRadius={60}
+                                                            outerRadius={100}
+                                                            paddingAngle={5}
+                                                            dataKey="value"
+                                                            stroke="none"
+                                                            label={({ name, percent }) => percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
+                                                            labelLine={false}
+                                                        >
+                                                            {stats.statusData.map((entry, index) => (
+                                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                                            ))}
+                                                        </Pie>
+                                                        <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }} />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </div>
+
+                                        {/* Chart 2: Taux de deploiement */}
+                                        <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-50 flex flex-col relative group">
+                                            <div class="flex justify-between items-center mb-6">
+                                                <div>
+                                                    <h3 class="font-black text-gray-900 text-xl tracking-tight">Taux de Déploiement</h3>
+                                                    <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Sur les tâches terminées</p>
+                                                </div>
+                                                <button onClick={() => downloadChart('chart-deploy', 'taux_deploiement')} class="p-2 bg-gray-50 text-gray-400 hover:text-kya-blue hover:bg-blue-50 rounded-xl transition-all shadow-sm" title="Télécharger en image">
+                                                    <Icon name="download" className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                            <div id="chart-deploy" class="flex-1 flex items-center justify-center min-h-[300px]">
+                                                {stats.summary.digitized > 0 ? (
+                                                    <ResponsiveContainer width="100%" height={300}>
+                                                        <PieChart>
+                                                            <Pie
+                                                                data={stats.deployData}
+                                                                cx="50%"
+                                                                cy="50%"
+                                                                innerRadius={80}
+                                                                outerRadius={100}
+                                                                paddingAngle={5}
+                                                                dataKey="value"
+                                                                stroke="none"
+                                                                label={({ name, percent }) => percent > 0 ? `${name} ${(percent * 100).toFixed(0)}%` : ''}
+                                                            >
+                                                                {stats.deployData.map((entry, index) => (
+                                                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                                                ))}
+                                                            </Pie>
+                                                            <Tooltip contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1)' }} />
+                                                        </PieChart>
+                                                    </ResponsiveContainer>
+                                                ) : (
+                                                    <div class="flex flex-col items-center justify-center h-full text-gray-400">
+                                                        <Icon name="rocket" className="w-12 h-12 mb-2 opacity-20" />
+                                                        <p class="text-xs font-bold uppercase tracking-widest">Aucune tâche terminée</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Task Breakdown Table */}
+                                <div class="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-50 overflow-hidden">
+                                    <div class="flex justify-between items-center mb-8">
+                                        <div>
+                                            <h3 class="font-black text-gray-900 text-2xl tracking-tight">État d'Avancement par Processus</h3>
+                                            <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Détails des {stats.summary.total} tâches identifiées</p>
+                                        </div>
+                                        <div class="flex gap-4">
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-3 h-3 rounded-full bg-kya-green"></div>
+                                                <span class="text-[10px] font-black text-gray-400 uppercase">Terminé</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-3 h-3 rounded-full bg-kya-orange"></div>
+                                                <span class="text-[10px] font-black text-gray-400 uppercase">En cours</span>
+                                            </div>
+                                            <div class="flex items-center gap-2">
+                                                <div class="w-3 h-3 rounded-full bg-gray-200"></div>
+                                                <span class="text-[10px] font-black text-gray-400 uppercase">A faire</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
                                     <div class="overflow-x-auto">
-                                        <table class="w-full text-left">
+                                        <table class="w-full">
                                             <thead>
-                                                <tr class="text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50">
-                                                    <th class="pb-4 text-left">Semaine</th>
-                                                    <th class="pb-4 text-left">Période / Date</th>
-                                                    <th class="pb-4 text-center">Score Global</th>
-                                                    <th class="pb-4 text-center">Détail Départements</th>
+                                                <tr class="text-left text-[10px] font-black text-gray-300 uppercase tracking-[0.2em] border-b border-gray-50">
+                                                    <th class="pb-6 px-4">Département</th>
+                                                    <th class="pb-6 px-4">Tâche / Processus</th>
+                                                    <th class="pb-6 px-4">Progression</th>
+                                                    <th class="pb-6 px-4 text-center">Utilisation</th>
                                                 </tr>
                                             </thead>
                                             <tbody class="divide-y divide-gray-50">
-                                                {[...activeData.history].reverse().map(h => {
-                                                    const hAvg = h.averages ? Math.round(h.averages.reduce((acc, a) => acc + a.val, 0) / h.averages.length) : 0;
+                                                {data.current.tasks.sort((a,b) => b.progress - a.progress).map(task => {
+                                                    const dept = DEPARTMENTS.find(d => d.id === task.deptId);
                                                     return (
-                                                        <tr key={h.week} class="group hover:bg-gray-50 transition-colors">
-                                                            <td class="py-4 font-black text-gray-900">S{h.week}</td>
-                                                            <td class="py-4 text-xs font-bold text-gray-500">{h.date}</td>
-                                                            <td class="py-4 text-center">
-                                                                <span class="inline-block px-3 py-1 bg-kya-blue/10 text-kya-blue rounded-full font-black text-sm">
-                                                                    {hAvg}%
-                                                                </span>
-                                                            </td>
-                                                            <td class="py-4">
-                                                                <div class="flex justify-center gap-2">
-                                                                    {h.averages && h.averages.map(a => (
-                                                                        <div key={a.id} class="px-2 py-0.5 bg-gray-100 rounded text-[9px] font-bold text-gray-400 uppercase">
-                                                                            {a.id}: {a.val}%
-                                                                        </div>
-                                                                    ))}
+                                                        <tr key={task.id} class="group hover:bg-gray-50 transition-colors">
+                                                            <td class="py-5 px-4">
+                                                                <div class="flex items-center gap-3">
+                                                                    <div class={`p-2 rounded-lg ${task.deptId === 'rh' ? 'bg-orange-50 text-kya-orange' : 'bg-blue-50 text-kya-blue'}`}>
+                                                                        <Icon name={dept?.icon || 'help-circle'} className="w-4 h-4" />
+                                                                    </div>
+                                                                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-tight">{dept?.name}</span>
                                                                 </div>
+                                                            </td>
+                                                            <td class="py-5 px-4 font-bold text-gray-900 group-hover:text-kya-blue transition-colors">
+                                                                {task.name}
+                                                            </td>
+                                                            <td class="py-5 px-4 w-64">
+                                                                <div class="flex items-center gap-4">
+                                                                    <div class="flex-1 bg-gray-100 h-2 rounded-full overflow-hidden shadow-inner ring-1 ring-gray-200/50">
+                                                                        <div 
+                                                                            class={`h-full rounded-full transition-all duration-1000 ${task.progress === 100 ? 'bg-kya-green' : task.progress > 0 ? 'bg-kya-orange' : 'bg-gray-200'}`}
+                                                                            style={{ width: `${task.progress}%` }}
+                                                                        ></div>
+                                                                    </div>
+                                                                    <span class="text-xs font-black text-gray-900 w-10">{task.progress}%</span>
+                                                                </div>
+                                                            </td>
+                                                            <td class="py-5 px-4 text-center">
+                                                                {task.isDeployed ? (
+                                                                    <div class="inline-flex items-center gap-1.5 px-3 py-1 bg-green-500 text-white rounded-full text-[9px] font-black uppercase shadow-lg shadow-green-100">
+                                                                        <Icon name="rocket" className="w-3 h-3" />
+                                                                        En Production
+                                                                    </div>
+                                                                ) : (
+                                                                    <span class="text-[10px] font-black text-gray-300 uppercase italic">Non déployé</span>
+                                                                )}
                                                             </td>
                                                         </tr>
                                                     );
@@ -816,7 +1025,7 @@
                                         </p>
 
                                         <div class="space-y-4 max-h-[400px] overflow-y-auto pr-2">
-                                            {[...activeData.history].reverse().map(h => (
+                                            {[...data.history].reverse().map(h => (
                                                 <div key={h.week} class="flex items-center justify-between p-4 bg-gray-50 rounded-2xl border border-gray-100">
                                                     <div class="flex-1">
                                                         <span class="text-[10px] font-black text-blue-600 uppercase">Semaine {h.week}</span>
@@ -845,7 +1054,7 @@
                                             class="w-full py-4 bg-red-50 text-red-600 rounded-2xl text-xs font-black uppercase tracking-widest hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-2"
                                         >
                                             <Icon name="undo-2" className="w-4 h-4" />
-                                            Supprimer la dernière archive (S{activeData.history.length})
+                                            Supprimer la dernière archive (S{data.history.length})
                                         </button>
                                     </div>
 
