@@ -206,7 +206,7 @@
                         : 0;
 
                     // Comparison logic
-                    const lastWeek = activeData.history[activeData.history.length - 1];
+                    const lastWeek = data.history[data.history.length - 1];
                     const lastAvg = lastWeek?.averages?.find(a => a.id === d.id)?.val || 0;
                     const diff = avg - lastAvg;
 
@@ -216,21 +216,21 @@
                 const totalAvg = Math.round(deptStats.reduce((acc, d) => acc + d.progress, 0) / deptStats.length);
 
                 // Global Counts
-                const tasks = activeData.current.tasks;
+                const tasks = data.current.tasks;
                 const totalTasks = tasks.length;
                 const digitizedTasks = tasks.filter(t => t.progress === 100).length;
                 const inProgressTasks = tasks.filter(t => t.progress > 0 && t.progress < 100).length;
                 const deployedTasks = tasks.filter(t => t.isDeployed).length;
 
                 // Global comparison
-                const lastWeekEntries = activeData.history[activeData.history.length - 1];
+                const lastWeekEntries = data.history[data.history.length - 1];
                 const lastTotalAvg = lastWeekEntries
                     ? Math.round(lastWeekEntries.averages.reduce((acc, a) => acc + a.val, 0) / lastWeekEntries.averages.length)
                     : 0;
                 const totalDiff = totalAvg - lastTotalAvg;
 
                 // History data for chart
-                const historyData = activeData.history.map(h => {
+                const historyData = data.history.map(h => {
                     const hAvg = h.averages
                         ? Math.round(h.averages.reduce((acc, a) => acc + a.val, 0) / h.averages.length)
                         : 0;
@@ -258,6 +258,24 @@
                     { name: 'Non déployé', value: Math.max(0, summary.digitized - summary.deployed), color: '#3A9E3E' }
                 ].filter(d => d.value > 0);
 
+                const deptDetails = DEPARTMENTS.map(dept => {
+                    const deptTasks = data.current.tasks.filter(t => t.deptId === dept.id);
+                    const done = deptTasks.filter(t => t.progress === 100).length;
+                    const inProgress = deptTasks.filter(t => t.progress > 0 && t.progress < 100).length;
+                    const todoPending = deptTasks.length - done - inProgress;
+                    return {
+                        id: dept.id,
+                        name: dept.name,
+                        icon: dept.icon,
+                        total: deptTasks.length,
+                        chartData: [
+                            { name: 'Terminé', value: done, color: '#3A9E3E' },
+                            { name: 'En cours', value: inProgress, color: '#F1802D' },
+                            { name: 'À faire', value: todoPending, color: '#E5E7EB' }
+                        ]
+                    };
+                });
+
                 return { 
                     deptStats, 
                     totalAvg, 
@@ -266,6 +284,7 @@
                     historyData,
                     statusData,
                     deployData,
+                    deptDetails,
                     summary
                 };
             }, [data]);
@@ -565,7 +584,7 @@
                                     {stats.totalAvg === 0 && stats.lastTotalAvg === 0 ? '' : (
                                         <>
                                             {stats.totalDiff >= 0 ? '▲' : '▼'} {Math.abs(stats.totalDiff)}%
-                                            <span class="opacity-50 ml-1">(S{activeData.history.length}: {stats.lastTotalAvg}%)</span>
+                                            <span class="opacity-50 ml-1">(S{data.history.length}: {stats.lastTotalAvg}%)</span>
                                         </>
                                     )}
                                 </span>
@@ -586,42 +605,37 @@
                                      view === 'stats' ? 'Récapitulatif des Statistiques' :
                                      view === 'admin' ? 'Administration & Paramètres' : 
                                      'Configuration des Tâches'}
-                                    {data.activePhase === 'preprod' && (
-                                        <span class="px-3 py-1 bg-kya-orange text-white text-xs rounded-full uppercase tracking-widest shadow-lg shadow-orange-200 animate-pulse">Pre-Production</span>
-                                    )}
                                 </h1>
                                 <div class="flex items-center gap-4 mt-1">
-                                    <div class="px-2 py-0.5 bg-kya-blue text-white text-[10px] font-bold rounded uppercase">Semaine {activeData.history.length + 1}</div>
+                                    <div class="px-2 py-0.5 bg-kya-blue text-white text-[10px] font-bold rounded uppercase">Semaine {data.history.length + 1}</div>
                                     <div class="flex items-center gap-2 bg-white/50 px-3 py-1 rounded-lg border border-gray-100">
                                         <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Période :</span>
                                         <div class="flex items-center gap-1">
                                             <input
                                                 type="date"
-                                                value={activeData.current.dateRange.start}
+                                                value={data.current.dateRange.start}
                                                 onChange={(e) => updateDateRange('start', e.target.value)}
                                                 class="bg-transparent text-[10px] font-bold text-gray-900 focus:outline-none cursor-pointer"
                                             />
                                             <span class="text-[10px] font-bold text-gray-400">au</span>
                                             <input
                                                 type="date"
-                                                value={activeData.current.dateRange.end}
+                                                value={data.current.dateRange.end}
                                                 onChange={(e) => updateDateRange('end', e.target.value)}
                                                 class="bg-transparent text-[10px] font-bold text-gray-900 focus:outline-none cursor-pointer"
                                             />
                                         </div>
                                     </div>
-                                    {!activeData.current.dateRange.start && !activeData.current.dateRange.end && (
+                                    {!data.current.dateRange.start && !data.current.dateRange.end && (
                                         <p class="text-gray-400 text-xs font-medium uppercase tracking-widest">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
                                     )}
                                 </div>
                             </div>
                             <div class="flex gap-4">
-                                {data.activePhase === 'preprod' && (
-                                    <button onClick={submitFeedback} class="px-4 py-2.5 bg-orange-50 text-kya-orange border border-orange-100 rounded-xl hover:bg-orange-100 transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wide">
-                                        <Icon name="message-circle" className="w-4 h-4" />
-                                        Feedback
-                                    </button>
-                                )}
+                                <button onClick={submitFeedback} class="px-4 py-2.5 bg-orange-50 text-kya-orange border border-orange-100 rounded-xl hover:bg-orange-100 transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wide">
+                                    <Icon name="message-circle" className="w-4 h-4" />
+                                    Feedback
+                                </button>
                                 <button onClick={archiveWeek} class="group px-5 py-2.5 bg-white text-gray-700 border border-gray-100 rounded-xl hover:border-kya-orange shadow-sm transition-all flex items-center gap-2 text-sm font-bold">
                                     <Icon name="save" className="w-4 h-4 group-hover:text-kya-orange" />
                                     Sauvegarder Semaine
@@ -918,6 +932,54 @@
                                                     </div>
                                                 )}
                                             </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Departmental Charts */}
+                                {stats.summary.total > 0 && (
+                                    <div class="space-y-6">
+                                        <div>
+                                            <h3 class="font-black text-gray-900 text-2xl tracking-tight">Détails par Département</h3>
+                                            <p class="text-xs text-gray-400 font-bold uppercase tracking-widest mt-1">Répartition des tâches par équipe</p>
+                                        </div>
+                                        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+                                            {stats.deptDetails.map(dept => (
+                                                <div key={dept.id} class="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-50 flex flex-col group relative">
+                                                    <div class="flex justify-between items-start mb-6">
+                                                        <div>
+                                                            <div class="flex items-center gap-2 mb-1">
+                                                                <Icon name={dept.icon} className={`w-5 h-5 ${dept.id === 'rh' ? 'text-kya-orange' : 'text-kya-blue'}`} />
+                                                                <h4 class="font-black text-gray-900 text-lg leading-none">{dept.name}</h4>
+                                                            </div>
+                                                            <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{dept.total} tâches au total</p>
+                                                        </div>
+                                                        <button onClick={() => downloadChart(`chart-${dept.id}`, `stats_${dept.id}`)} class="p-1.5 bg-gray-50 text-gray-400 hover:text-kya-blue hover:bg-blue-50 rounded-lg transition-all" title="Télécharger en image">
+                                                            <Icon name="download" className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                    <div id={`chart-${dept.id}`} class="flex-1 flex flex-col items-center justify-center min-h-[150px]">
+                                                        {dept.total > 0 ? (
+                                                            <ResponsiveContainer width="100%" height={150}>
+                                                                <BarChart data={dept.chartData} margin={{ top: 20, right: 0, left: 0, bottom: 0 }}>
+                                                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 700, fill: '#cbd5e1' }} />
+                                                                    <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '1rem', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                                                                    <Bar dataKey="value" radius={[4, 4, 4, 4]} barSize={20}>
+                                                                        {dept.chartData.map((entry, index) => (
+                                                                            <Cell key={`cell-${index}`} fill={entry.color} />
+                                                                        ))}
+                                                                    </Bar>
+                                                                </BarChart>
+                                                            </ResponsiveContainer>
+                                                        ) : (
+                                                            <div class="flex flex-col items-center justify-center h-full text-gray-400 opacity-50">
+                                                                <Icon name="inbox" className="w-8 h-8 mb-2" />
+                                                                <p class="text-[10px] font-bold uppercase tracking-widest">Aucune tâche</p>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
                                     </div>
                                 )}
